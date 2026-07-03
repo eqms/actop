@@ -108,19 +108,19 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 	case "S":
 		if c := g.selected(); c != nil && !c.Running() {
-			return g, g.app.push(newConfirmScreen(g.app, "start", c.ID))
+			return g, g.app.push(confirmAction(g.app, "start", c.ID))
 		}
 	case "X":
 		if c := g.selected(); c != nil && c.Running() {
-			return g, g.app.push(newConfirmScreen(g.app, "stop", c.ID))
+			return g, g.app.push(confirmAction(g.app, "stop", c.ID))
 		}
 	case "K":
 		if c := g.selected(); c != nil && c.Running() {
-			return g, g.app.push(newConfirmScreen(g.app, "kill", c.ID))
+			return g, g.app.push(confirmAction(g.app, "kill", c.ID))
 		}
 	case "D":
 		if c := g.selected(); c != nil {
-			return g, g.app.push(newConfirmScreen(g.app, "delete", c.ID))
+			return g, g.app.push(confirmAction(g.app, "delete", c.ID))
 		}
 	}
 	return g, nil
@@ -141,6 +141,12 @@ func gridColumns(nameWidth int) []column {
 				return "-"
 			}
 			return fmt.Sprintf("%.1f%%", c.Sample.CPUPercent)
+		}},
+		{"HIST", 12, func(c *model.Container, _ time.Time) string {
+			if c.History == nil || c.History.CPU.Len() == 0 {
+				return "-"
+			}
+			return sparkline(c.History.CPU.Values(), 12, 10)
 		}},
 		{"MEM", 12, func(c *model.Container, _ time.Time) string {
 			if c.Sample.MemLimit == 0 {
@@ -241,9 +247,21 @@ func stripStyles(cols []column, c *model.Container, now time.Time) []string {
 	return cells
 }
 
+// pad is rune-aware: sparkline glyphs and umlauts are multi-byte.
 func pad(s string, w int) string {
-	if len(s) > w {
-		return s[:w-1] + "…"
+	r := []rune(s)
+	if len(r) > w {
+		return string(r[:w-1]) + "…"
 	}
-	return s + strings.Repeat(" ", w-len(s))
+	return s + strings.Repeat(" ", w-len(r))
 }
+
+// confirmAction wraps a container lifecycle action in a confirm dialog.
+func confirmAction(app *App, action, id string) *confirmScreen {
+	q := fmt.Sprintf("%s container %q?", action, id)
+	return newConfirmScreen(q, actionCmd(app.client, action, id))
+}
+
+// capturesInput reports whether the grid is in filter-typing mode, so the
+// app must not hijack keys like 1/2/3 for tab switching.
+func (g *gridScreen) capturesInput() bool { return g.filtering }

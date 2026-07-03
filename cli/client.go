@@ -17,11 +17,17 @@ type Client interface {
 	Inspect(ctx context.Context, id string) (*ListItem, error)
 	// SystemStatus reports whether the container API server is running.
 	SystemStatus(ctx context.Context) (*SystemStatus, error)
+	// Volumes returns all named volumes.
+	Volumes(ctx context.Context) ([]Volume, error)
+	// Images returns all local images.
+	Images(ctx context.Context) ([]Image, error)
 
 	Start(ctx context.Context, id string) error
 	Stop(ctx context.Context, id string) error
 	Kill(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
+	VolumeDelete(ctx context.Context, name string) error
+	ImageDelete(ctx context.Context, ref string) error
 
 	// LogsCmd builds the (not yet started) subprocess for log streaming.
 	LogsCmd(id string, follow bool) *exec.Cmd

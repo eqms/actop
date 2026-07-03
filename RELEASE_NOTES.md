@@ -6,6 +6,22 @@
 
 ## Deutsche Release Notes
 
+### v0.2.0 (2026-07-04)
+
+#### Neue Features
+- **Volumes-Tab** (`2`): Alle Named Volumes mit Format, Größe, Erstellungsdatum und Quellpfad; Löschen mit Rückfrage (`D`) — inkl. Warnung, dass Volume-Daten verloren gehen
+- **Images-Tab** (`3`): Alle lokalen Images mit Referenz, Digest, Erstellungsdatum und Varianten-Anzahl; Löschen mit Rückfrage (`D`)
+- **Tab-Navigation**: `tab` wechselt zyklisch, `1`–`3` springt direkt; Tab-Leiste im Header; Tab-Tasten werden während der Filter-Eingabe nicht abgefangen
+- **Sparklines**: Neue `HIST`-Spalte im Container-Grid (CPU-Verlauf, 12 Samples); Detail-Ansicht zeigt CPU- und Speicher-Verlauf der letzten ~2 Minuten (60 Samples, Block-Glyphen `▁▂▃▄▅▆▇█`)
+
+#### Intern
+- `metrics.RingBuffer` (fixe Größe, Wrap-around) mit Tests; History übersteht Listen-Refreshes
+- Runen-bewusstes Spalten-Padding (Sparkline-Glyphen und Umlaute sind Multi-Byte)
+- Generischer Confirm-Dialog (ein Screen für Container-/Volume-/Image-Aktionen)
+- Neue Fixtures (`volumes.json`, `images.json`) und UI-Tests für Tab-Wechsel, Filter-Schutz und Volume-Delete
+
+---
+
 ### v0.1.0 (2026-07-03)
 
 Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Apple Silicon).
@@ -28,6 +44,22 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.2.0 (2026-07-04)
+
+#### Added
+- **Volumes tab** (`2`): all named volumes with format, size, creation date and source path; delete with confirmation (`D`) — including a warning that volume data is lost
+- **Images tab** (`3`): all local images with reference, digest, creation date and variant count; delete with confirmation (`D`)
+- **Tab navigation**: `tab` cycles, `1`–`3` jumps directly; tab bar in the header; tab keys are not hijacked while typing in the filter
+- **Sparklines**: new `HIST` column in the container grid (CPU trend, 12 samples); the detail view shows CPU and memory history of the last ~2 minutes (60 samples, block glyphs `▁▂▃▄▅▆▇█`)
+
+#### Internal
+- `metrics.RingBuffer` (fixed size, wrap-around) with tests; history survives list refreshes
+- Rune-aware column padding (sparkline glyphs and umlauts are multi-byte)
+- Generic confirm dialog (one screen for container/volume/image actions)
+- New fixtures (`volumes.json`, `images.json`) and UI tests for tab switching, filter guarding and volume delete
+
+---
 
 ### v0.1.0 (2026-07-03)
 

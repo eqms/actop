@@ -63,6 +63,14 @@ func (d *detailScreen) content() string {
 		line("pids", fmt.Sprintf("%d", c.Sample.PIDs))
 	}
 
+	if c.History != nil && c.History.CPU.Len() > 1 {
+		b.WriteString("\n" + styleColHead.Render("HISTORY (~2 min)") + "\n")
+		line("cpu %", sparkline(c.History.CPU.Values(), 60, 10)+
+			fmt.Sprintf("  %.1f%%", c.Sample.CPUPercent))
+		line("mem %", sparkline(c.History.Mem.Values(), 60, 10)+
+			fmt.Sprintf("  %.0f%%", lastValue(c.History.Mem.Values())))
+	}
+
 	b.WriteString("\n" + styleColHead.Render("ENV") + "\n")
 	if len(c.Env) == 0 {
 		b.WriteString(styleDim.Render("(none)") + "\n")
@@ -76,6 +84,13 @@ func (d *detailScreen) content() string {
 		b.WriteString(key + "=" + redact.Env(key, value) + "\n")
 	}
 	return b.String()
+}
+
+func lastValue(vs []float64) float64 {
+	if len(vs) == 0 {
+		return 0
+	}
+	return vs[len(vs)-1]
 }
 
 func (d *detailScreen) view(width, height int) string {

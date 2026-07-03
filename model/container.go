@@ -21,6 +21,21 @@ type Container struct {
 	CPUs    int
 	Env     []string
 	Sample  metrics.Sample
+	History *History
+}
+
+// History keeps recent metric samples for sparkline rendering.
+// CPU holds percent values; Mem holds usage as percent of the limit.
+type History struct {
+	CPU *metrics.RingBuffer
+	Mem *metrics.RingBuffer
+}
+
+func newHistory() *History {
+	return &History{
+		CPU: metrics.NewRingBuffer(metrics.HistorySize),
+		Mem: metrics.NewRingBuffer(metrics.HistorySize),
+	}
 }
 
 func fromListItem(it cli.ListItem) *Container {

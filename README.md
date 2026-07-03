@@ -41,7 +41,8 @@ make build
 
 | Taste | Aktion |
 |---|---|
-| `enter` | Container-Details (inkl. Env, Secrets maskiert) |
+| `tab` / `1`–`3` | Tabs: Containers / Volumes / Images |
+| `enter` | Container-Details (inkl. Env, Secrets maskiert, CPU/Mem-Sparklines) |
 | `l` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
 | `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (mit Rückfrage) |
@@ -73,11 +74,15 @@ shell = ""               # leer = Auto-Erkennung; nur sh/bash/zsh/fish erlaubt
 - Subprozesse laufen ohne Shell-Interpreter (kein `sh -c` mit Nutzereingaben);
   die Exec-Shell ist whitelisted.
 
-### Roadmap (v0.2)
+### Neu in v0.2
 
-- Tabs für Volumes, Images und System-Status
+- **Tabs**: Volumes- und Images-Ansicht (`tab` bzw. `1`–`3`), inkl. Delete mit Rückfrage
+- **Sparklines**: CPU-Historie als Spalte im Grid, CPU-/Mem-Verlauf (~2 min) in der Detail-Ansicht
+
+### Roadmap (v0.3)
+
+- System-Status-Pane
 - Spalten-Konfiguration (Registry ist vorbereitet)
-- Sparklines (CPU/Mem-Historie)
 - Browser-Open für veröffentlichte Ports
 
 ---
@@ -112,7 +117,8 @@ make build
 
 | Key | Action |
 |---|---|
-| `enter` | Container details (incl. env, secrets masked) |
+| `tab` / `1`–`3` | Tabs: containers / volumes / images |
+| `enter` | Container details (incl. env, secrets masked, CPU/mem sparklines) |
 | `l` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
 | `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (with confirmation) |
@@ -144,11 +150,15 @@ shell = ""               # empty = auto-detect; only sh/bash/zsh/fish allowed
 - Subprocesses run without a shell interpreter (no `sh -c` with user input);
   the exec shell is whitelisted.
 
-### Roadmap (v0.2)
+### New in v0.2
 
-- Tabs for volumes, images and system status
+- **Tabs**: volumes and images views (`tab` or `1`–`3`), incl. delete with confirmation
+- **Sparklines**: CPU history column in the grid, CPU/mem trend (~2 min) in the detail view
+
+### Roadmap (v0.3)
+
+- System status pane
 - Column configuration (registry is prepared)
-- Sparklines (CPU/mem history)
 - Browser-open for published ports
 
 ---

@@ -25,6 +25,42 @@ func rate(bps float64) string {
 	return byteSize(int64(bps)) + "/s"
 }
 
+// sparkBlocks are the eight block glyphs used for sparkline levels.
+var sparkBlocks = []rune("▁▂▃▄▅▆▇█")
+
+// sparkline renders the last `width` values as a block-glyph graph.
+// Values are scaled against max(observed, floor) so idle noise does not
+// render as full bars; for percent metrics pass floor=10.
+func sparkline(values []float64, width int, floor float64) string {
+	if width <= 0 || len(values) == 0 {
+		return ""
+	}
+	if len(values) > width {
+		values = values[len(values)-width:]
+	}
+	scale := floor
+	for _, v := range values {
+		if v > scale {
+			scale = v
+		}
+	}
+	if scale <= 0 {
+		scale = 1
+	}
+	out := make([]rune, 0, width)
+	for _, v := range values {
+		idx := int(v / scale * float64(len(sparkBlocks)-1))
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= len(sparkBlocks) {
+			idx = len(sparkBlocks) - 1
+		}
+		out = append(out, sparkBlocks[idx])
+	}
+	return string(out)
+}
+
 // shortDuration renders an uptime like ctop: 2d4h, 5h12m, 3m2s.
 func shortDuration(d time.Duration) string {
 	if d <= 0 {

@@ -119,6 +119,75 @@ func TestConfirmNoDoesNothing(t *testing.T) {
 	}
 }
 
+func TestTabSwitching(t *testing.T) {
+	app, _ := testApp()
+	if _, ok := app.top().(*gridScreen); !ok {
+		t.Fatalf("initial tab must be the container grid, got %T", app.top())
+	}
+
+	// "2" switches to volumes and fetches them
+	_, cmd := app.Update(key('2'))
+	if _, ok := app.top().(*volumesScreen); !ok {
+		t.Fatalf("expected volumes tab, got %T", app.top())
+	}
+	if cmd == nil {
+		t.Error("tab switch must trigger a fetch command")
+	}
+
+	// tab cycles volumes -> images
+	app.Update(tea.KeyMsg{Type: tea.KeyTab})
+	if _, ok := app.top().(*imagesScreen); !ok {
+		t.Fatalf("expected images tab after cycle, got %T", app.top())
+	}
+
+	// volumes result lands in app state
+	app.Update(volumesResultMsg{volumes: []cli.Volume{{ID: "v1"}}})
+	if len(app.volumes) != 1 {
+		t.Errorf("volumes not stored: %d", len(app.volumes))
+	}
+}
+
+func TestTabKeysIgnoredWhileFiltering(t *testing.T) {
+	app, _ := testApp()
+	app.Update(key('f')) // grid enters filter mode
+	app.Update(key('2')) // must go into the filter, not switch tabs
+	if _, ok := app.top().(*gridScreen); !ok {
+		t.Fatalf("tab switched during filter input, top is %T", app.top())
+	}
+	if got := app.top().(*gridScreen).filter.Value(); got != "2" {
+		t.Errorf("filter value = %q, want \"2\"", got)
+	}
+}
+
+func TestVolumeDeleteConfirm(t *testing.T) {
+	app, mock := testApp()
+	app.Update(key('2'))
+	app.Update(volumesResultMsg{volumes: []cli.Volume{{
+		ID:            "vol1",
+		Configuration: cli.VolumeConfig{Name: "vol1"},
+	}}})
+	app.Update(key('D'))
+	if _, ok := app.top().(*confirmScreen); !ok {
+		t.Fatalf("expected confirm screen, got %T", app.top())
+	}
+	_, cmd := app.Update(key('y'))
+	if cmd == nil {
+		t.Fatal("expected delete command")
+	}
+	if msg := cmd(); msg == nil {
+		t.Fatal("delete command returned nil msg")
+	}
+	found := false
+	for _, c := range mock.Calls {
+		if c.Method == "VolumeDelete" && c.ID == "vol1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("VolumeDelete not called: %+v", mock.Calls)
+	}
+}
+
 func TestTickSchedulesPoll(t *testing.T) {
 	app, _ := testApp()
 	_, cmd := app.Update(tickMsg(time.Now()))

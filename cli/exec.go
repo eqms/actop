@@ -90,6 +90,40 @@ func (c *ExecClient) SystemStatus(ctx context.Context) (*SystemStatus, error) {
 	return &st, nil
 }
 
+func (c *ExecClient) Volumes(ctx context.Context) ([]Volume, error) {
+	out, err := c.run(ctx, "volume", "ls", "--format", "json")
+	if err != nil {
+		return nil, err
+	}
+	var vols []Volume
+	if err := json.Unmarshal(out, &vols); err != nil {
+		return nil, fmt.Errorf("parse volume ls output: %w", err)
+	}
+	return vols, nil
+}
+
+func (c *ExecClient) Images(ctx context.Context) ([]Image, error) {
+	out, err := c.run(ctx, "image", "ls", "--format", "json")
+	if err != nil {
+		return nil, err
+	}
+	var imgs []Image
+	if err := json.Unmarshal(out, &imgs); err != nil {
+		return nil, fmt.Errorf("parse image ls output: %w", err)
+	}
+	return imgs, nil
+}
+
+func (c *ExecClient) VolumeDelete(ctx context.Context, name string) error {
+	_, err := c.run(ctx, "volume", "delete", name)
+	return err
+}
+
+func (c *ExecClient) ImageDelete(ctx context.Context, ref string) error {
+	_, err := c.run(ctx, "image", "delete", ref)
+	return err
+}
+
 func (c *ExecClient) Start(ctx context.Context, id string) error {
 	_, err := c.run(ctx, "start", id)
 	return err

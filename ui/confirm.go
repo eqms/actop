@@ -1,20 +1,17 @@
 package ui
 
 import (
-	"fmt"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// confirmScreen asks before running a lifecycle action.
+// confirmScreen asks before running a destructive command.
 type confirmScreen struct {
-	app    *App
-	action string
-	id     string
+	question string
+	cmd      tea.Cmd
 }
 
-func newConfirmScreen(app *App, action, id string) *confirmScreen {
-	return &confirmScreen{app: app, action: action, id: id}
+func newConfirmScreen(question string, cmd tea.Cmd) *confirmScreen {
+	return &confirmScreen{question: question, cmd: cmd}
 }
 
 func (c *confirmScreen) update(msg tea.Msg) (screen, tea.Cmd) {
@@ -24,7 +21,7 @@ func (c *confirmScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	}
 	switch key.String() {
 	case "y", "enter":
-		return nil, actionCmd(c.app.client, c.action, c.id)
+		return nil, c.cmd
 	case "n", "esc", "q":
 		return nil, nil
 	}
@@ -32,7 +29,6 @@ func (c *confirmScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 }
 
 func (c *confirmScreen) view(width, height int) string {
-	q := fmt.Sprintf("%s container %q?", c.action, c.id)
-	return "\n  " + styleTitle.Render(q) + "\n\n  " +
+	return "\n  " + styleTitle.Render(c.question) + "\n\n  " +
 		styleWarn.Render("[y]es") + "  " + styleDim.Render("[n]o") + "\n"
 }

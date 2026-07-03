@@ -47,6 +47,40 @@ func fetchSystemStatusCmd(c cli.Client) tea.Cmd {
 	}
 }
 
+func fetchVolumesCmd(c cli.Client) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
+		defer cancel()
+		vols, err := c.Volumes(ctx)
+		return volumesResultMsg{volumes: vols, err: err}
+	}
+}
+
+func fetchImagesCmd(c cli.Client) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
+		defer cancel()
+		imgs, err := c.Images(ctx)
+		return imagesResultMsg{images: imgs, err: err}
+	}
+}
+
+func volumeDeleteCmd(c cli.Client, name string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+		defer cancel()
+		return actionDoneMsg{action: "volume delete", id: name, err: c.VolumeDelete(ctx, name)}
+	}
+}
+
+func imageDeleteCmd(c cli.Client, ref string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+		defer cancel()
+		return actionDoneMsg{action: "image delete", id: ref, err: c.ImageDelete(ctx, ref)}
+	}
+}
+
 func actionCmd(c cli.Client, action, id string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)

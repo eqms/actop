@@ -32,6 +32,11 @@ type App struct {
 
 	width, height int
 	stack         []screen
+	tabs          []screen
+	activeTab     int
+
+	volumes []cli.Volume
+	images  []cli.Image
 
 	sortField     model.SortField
 	sortReversed  bool
@@ -57,8 +62,45 @@ func NewApp(client cli.Client, cfg config.Config, version string) *App {
 		allContainers: cfg.AllContainers,
 		connOK:        true,
 	}
-	app.stack = []screen{newGridScreen(app)}
+	app.tabs = []screen{newGridScreen(app), newVolumesScreen(app), newImagesScreen(app)}
+	app.stack = []screen{app.tabs[0]}
 	return app
+}
+
+// tabNames labels the base views in the header, index-aligned with tabs.
+var tabNames = []string{"containers", "volumes", "images"}
+
+// switchTab replaces the base screen and fetches the new tab's data.
+func (a *App) switchTab(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(a.tabs) || idx == a.activeTab {
+		return nil
+	}
+	a.activeTab = idx
+	a.stack[0] = a.tabs[idx]
+	return a.tabFetchCmd()
+}
+
+// tabFetchCmd returns the fetch command for the active tab's data source.
+func (a *App) tabFetchCmd() tea.Cmd {
+	switch a.activeTab {
+	case 1:
+		return fetchVolumesCmd(a.client)
+	case 2:
+		return fetchImagesCmd(a.client)
+	default:
+		return nil
+	}
+}
+
+// inputCapturer lets a base screen veto tab-switch keys while it is
+// consuming raw text input (e.g. the grid's filter field).
+type inputCapturer interface{ capturesInput() bool }
+
+func (a *App) baseCapturesInput() bool {
+	if c, ok := a.stack[0].(inputCapturer); ok {
+		return c.capturesInput()
+	}
+	return false
 }
 
 func (a *App) Init() tea.Cmd {
@@ -92,7 +134,7 @@ func (a *App) top() screen { return a.stack[len(a.stack)-1] }
 // retryNow resets the backoff and polls immediately.
 func (a *App) retryNow() tea.Cmd {
 	a.backoff = 0
-	return tea.Batch(fetchListCmd(a.client, a.allContainers), fetchStatsCmd(a.client))
+	return tea.Batch(fetchListCmd(a.client, a.allContainers), fetchStatsCmd(a.client), a.tabFetchCmd())
 }
 
 func (a *App) handlePollError(err error) tea.Cmd {
@@ -150,12 +192,23 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.closeAll()
 			return a, tea.Quit
 		}
+		// tab switching only applies to the base view, never to overlays
+		// or while the base screen consumes text input
+		if len(a.stack) == 1 && !a.baseCapturesInput() {
+			switch m.String() {
+			case "tab":
+				return a, a.switchTab((a.activeTab + 1) % len(a.tabs))
+			case "1", "2", "3":
+				return a, a.switchTab(int(m.String()[0] - '1'))
+			}
+		}
 		return a, a.routeToTop(msg)
 
 	case tickMsg:
 		return a, tea.Batch(
 			fetchListCmd(a.client, a.allContainers),
 			fetchStatsCmd(a.client),
+			a.tabFetchCmd(),
 			tickCmd(a.interval()),
 		)
 
@@ -173,6 +226,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.markConnected()
 		a.store.ApplyStats(m.entries, m.ts, a.engine, a.hostCPUs)
+		return a, nil
+
+	case volumesResultMsg:
+		if m.err != nil {
+			return a, a.handlePollError(m.err)
+		}
+		a.markConnected()
+		a.volumes = m.volumes
+		return a, nil
+
+	case imagesResultMsg:
+		if m.err != nil {
+			return a, a.handlePollError(m.err)
+		}
+		a.markConnected()
+		a.images = m.images
 		return a, nil
 
 	case systemStatusMsg:
@@ -213,9 +282,19 @@ func (a *App) closeAll() {
 
 func (a *App) header() string {
 	left := styleHeader.Render(fmt.Sprintf("actop v%s", a.version))
-	info := fmt.Sprintf("  %d containers · sort %s · poll %s",
+	tabsPart := "  "
+	for i, name := range tabNames {
+		label := fmt.Sprintf("[%d]%s", i+1, name)
+		if i == a.activeTab {
+			tabsPart += styleTitle.Render(label)
+		} else {
+			tabsPart += styleDim.Render(label)
+		}
+		tabsPart += " "
+	}
+	info := fmt.Sprintf(" %d containers · sort %s · poll %s",
 		a.store.Len(), a.sortField, a.interval().Truncate(time.Millisecond))
-	line := left + styleDim.Render(info)
+	line := left + tabsPart + styleDim.Render(info)
 
 	if !a.connOK {
 		banner := fmt.Sprintf("API server not reachable — retrying every %s (r = retry now)", a.interval())

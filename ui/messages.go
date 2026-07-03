@@ -24,6 +24,16 @@ type systemStatusMsg struct {
 	err    error
 }
 
+type volumesResultMsg struct {
+	volumes []cli.Volume
+	err     error
+}
+
+type imagesResultMsg struct {
+	images []cli.Image
+	err    error
+}
+
 type actionDoneMsg struct {
 	action string
 	id     string

@@ -12,6 +12,8 @@ type MockClient struct {
 	StatsFn        func(ctx context.Context) ([]StatsEntry, error)
 	InspectFn      func(ctx context.Context, id string) (*ListItem, error)
 	SystemStatusFn func(ctx context.Context) (*SystemStatus, error)
+	VolumesFn      func(ctx context.Context) ([]Volume, error)
+	ImagesFn       func(ctx context.Context) ([]Image, error)
 	ActionFn       func(ctx context.Context, action, id string) error
 
 	Calls []MockCall
@@ -56,6 +58,30 @@ func (m *MockClient) SystemStatus(ctx context.Context) (*SystemStatus, error) {
 		return m.SystemStatusFn(ctx)
 	}
 	return &SystemStatus{Status: "running"}, nil
+}
+
+func (m *MockClient) Volumes(ctx context.Context) ([]Volume, error) {
+	m.record("Volumes", "")
+	if m.VolumesFn != nil {
+		return m.VolumesFn(ctx)
+	}
+	return nil, nil
+}
+
+func (m *MockClient) Images(ctx context.Context) ([]Image, error) {
+	m.record("Images", "")
+	if m.ImagesFn != nil {
+		return m.ImagesFn(ctx)
+	}
+	return nil, nil
+}
+
+func (m *MockClient) VolumeDelete(ctx context.Context, name string) error {
+	return m.action(ctx, "VolumeDelete", name)
+}
+
+func (m *MockClient) ImageDelete(ctx context.Context, ref string) error {
+	return m.action(ctx, "ImageDelete", ref)
 }
 
 func (m *MockClient) action(ctx context.Context, action, id string) error {

@@ -25,6 +25,10 @@ func (s *Store) ApplyList(items []cli.ListItem) {
 		c := fromListItem(it)
 		if old, ok := s.byID[c.ID]; ok {
 			c.Sample = old.Sample
+			c.History = old.History
+		}
+		if c.History == nil {
+			c.History = newHistory()
 		}
 		next[c.ID] = c
 	}
@@ -44,6 +48,12 @@ func (s *Store) ApplyStats(entries []cli.StatsEntry, now time.Time, engine *metr
 			nCPU = hostCPUs
 		}
 		c.Sample = engine.Compute(e, now, nCPU)
+		if c.Sample.HasRates {
+			c.History.CPU.Push(c.Sample.CPUPercent)
+		}
+		if c.Sample.MemLimit > 0 {
+			c.History.Mem.Push(float64(c.Sample.MemUsage) / float64(c.Sample.MemLimit) * 100)
+		}
 	}
 	engine.Prune(now)
 }

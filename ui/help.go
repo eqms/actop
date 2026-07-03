@@ -18,13 +18,15 @@ func (h *helpScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 }
 
 var helpEntries = [][2]string{
-	{"enter", "container details"},
+	{"tab", "cycle tabs (containers/volumes/images)"},
+	{"1-3", "switch tab directly"},
+	{"enter", "container details (with CPU/mem sparklines)"},
 	{"l", "logs (follow)"},
 	{"e", "exec shell"},
 	{"S", "start container"},
 	{"X", "stop container"},
 	{"K", "kill container"},
-	{"D", "delete container"},
+	{"D", "delete container / volume / image (per tab)"},
 	{"s", "cycle sort field"},
 	{"r", "reverse sort / retry connection"},
 	{"f", "filter"},

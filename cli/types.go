@@ -1,6 +1,10 @@
 package cli
 
-import "time"
+import (
+	"encoding/json"
+	"strings"
+	"time"
+)
 
 // ListItem is one element of `container ls -a --format json` and
 // `container inspect <id>` (which returns a single-element array).
@@ -68,6 +72,49 @@ type StatsEntry struct {
 	BlockReadBytes   int64  `json:"blockReadBytes"`
 	BlockWriteBytes  int64  `json:"blockWriteBytes"`
 	NumProcesses     int    `json:"numProcesses"`
+}
+
+// Volume is one element of `container volume ls --format json`.
+type Volume struct {
+	ID            string       `json:"id"`
+	Configuration VolumeConfig `json:"configuration"`
+}
+
+type VolumeConfig struct {
+	Name         string    `json:"name"`
+	Driver       string    `json:"driver"`
+	Format       string    `json:"format"`
+	SizeInBytes  int64     `json:"sizeInBytes"`
+	Source       string    `json:"source"`
+	CreationDate time.Time `json:"creationDate"`
+}
+
+// Image is one element of `container image ls --format json`.
+type Image struct {
+	ID            string            `json:"id"`
+	Configuration ImageConfig       `json:"configuration"`
+	Variants      []json.RawMessage `json:"variants"`
+}
+
+type ImageConfig struct {
+	Name         string     `json:"name"`
+	CreationDate time.Time  `json:"creationDate"`
+	Descriptor   Descriptor `json:"descriptor"`
+}
+
+type Descriptor struct {
+	Digest    string `json:"digest"`
+	MediaType string `json:"mediaType"`
+	Size      int64  `json:"size"`
+}
+
+// ShortDigest returns the first 12 hex chars of the image digest.
+func (i *Image) ShortDigest() string {
+	d := strings.TrimPrefix(i.Configuration.Descriptor.Digest, "sha256:")
+	if len(d) > 12 {
+		return d[:12]
+	}
+	return d
 }
 
 // SystemStatus is `container system status --format json`.
