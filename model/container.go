@@ -1,0 +1,51 @@
+// Package model holds the UI-independent domain state: containers merged
+// from list and stats polls, plus sorting and filtering.
+package model
+
+import (
+	"time"
+
+	"github.com/eqms/actop/cli"
+	"github.com/eqms/actop/metrics"
+)
+
+// Container is the merged view of one Apple container. Its ID doubles as
+// the user-visible name (Apple Container has no separate name field).
+type Container struct {
+	ID      string
+	Image   string
+	State   string
+	Created time.Time
+	Started time.Time
+	IP      string
+	CPUs    int
+	Env     []string
+	Sample  metrics.Sample
+}
+
+func fromListItem(it cli.ListItem) *Container {
+	c := &Container{
+		ID:      it.ID,
+		Image:   it.Configuration.Image.Reference,
+		Created: it.Configuration.CreationDate,
+		CPUs:    it.Configuration.Resources.CPUs,
+		Env:     it.Configuration.InitProcess.Environment,
+	}
+	if it.Status != nil {
+		c.State = it.Status.State
+		c.Started = it.Status.StartedDate
+		c.IP = it.Status.IP()
+	}
+	return c
+}
+
+// Running reports whether the container is currently running.
+func (c *Container) Running() bool { return c.State == "running" }
+
+// Uptime returns the time since start for running containers, else 0.
+func (c *Container) Uptime(now time.Time) time.Duration {
+	if !c.Running() || c.Started.IsZero() {
+		return 0
+	}
+	return now.Sub(c.Started)
+}

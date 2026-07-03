@@ -1,0 +1,30 @@
+package redact
+
+import "testing"
+
+func TestEnv(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		value string
+		want  string
+	}{
+		{"password key", "POSTGRES_PASSWORD", "hunter2", Redacted},
+		{"token key", "GITHUB_TOKEN", "ghp_abc", Redacted},
+		{"auth key", "BASIC_AUTH", "u:p", Redacted},
+		{"jwt key", "JWT_SIGNING", "x", Redacted},
+		{"sha key stays visible", "PG_SHA256", "abc123", "abc123"},
+		{"connection string value", "DATABASE_URL", "postgres://user:pass@db/app", Redacted},
+		{"plain url", "ENDPOINT", "https://example.com/x", "https://example.com/x"},
+		{"user stays visible", "POSTGRES_USER", "ownerp", "ownerp"},
+		{"path", "PATH", "/usr/bin", "/usr/bin"},
+		{"empty value", "SECRET", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Env(tt.key, tt.value); got != tt.want {
+				t.Errorf("Env(%q, %q) = %q, want %q", tt.key, tt.value, got, tt.want)
+			}
+		})
+	}
+}
