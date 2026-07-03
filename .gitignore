@@ -1,0 +1,8 @@
+actop
+*.log
+.DS_Store
+.idea
+*.sock
+.env
+*.pem
+*.key
