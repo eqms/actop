@@ -1,0 +1,16 @@
+# Keep Go modules and SHA-pinned GitHub Actions up to date.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "[CHG]"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "[CHG]"
