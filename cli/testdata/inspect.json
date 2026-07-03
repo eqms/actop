@@ -1,0 +1,165 @@
+[
+  {
+    "configuration" : {
+      "capAdd" : [
+
+      ],
+      "capDrop" : [
+
+      ],
+      "creationDate" : "2026-07-02T16:05:27Z",
+      "dns" : {
+        "nameservers" : [
+
+        ],
+        "options" : [
+
+        ],
+        "searchDomains" : [
+
+        ]
+      },
+      "id" : "picard-dev-db-18-native",
+      "image" : {
+        "descriptor" : {
+          "digest" : "sha256:4327b9fd295502f326f44153a1045a7170ddbfffed1c3829798328556cfd09e2",
+          "mediaType" : "application\/vnd.oci.image.index.v1+json",
+          "size" : 10301
+        },
+        "reference" : "docker.io\/library\/postgres:16.11-alpine"
+      },
+      "initProcess" : {
+        "arguments" : [
+          "postgres",
+          "-c",
+          "config_file=\/etc\/postgresql\/postgresql.conf"
+        ],
+        "environment" : [
+          "PG_SHA256=anonymized",
+          "PG_VERSION=16.11",
+          "GOSU_VERSION=1.19",
+          "LANG=en_US.utf8",
+          "POSTGRES_DB=postgres",
+          "PG_MAJOR=16",
+          "POSTGRES_PASSWORD=anonymized",
+          "PATH=\/usr\/local\/sbin:\/usr\/local\/bin:\/usr\/sbin:\/usr\/bin:\/sbin:\/bin",
+          "POSTGRES_USER=ownerp",
+          "DOCKER_PG_LLVM_DEPS=llvm19-dev \t\tclang19",
+          "PGDATA=\/var\/lib\/postgresql\/data\/pgdata"
+        ],
+        "executable" : "docker-entrypoint.sh",
+        "rlimits" : [
+
+        ],
+        "supplementalGroups" : [
+
+        ],
+        "terminal" : false,
+        "user" : {
+          "id" : {
+            "gid" : 0,
+            "uid" : 0
+          }
+        },
+        "workingDirectory" : "\/"
+      },
+      "labels" : {
+
+      },
+      "mounts" : [
+        {
+          "destination" : "\/var\/lib\/postgresql\/data",
+          "options" : [
+
+          ],
+          "source" : "\/Users\/picard\/Library\/Application Support\/com.apple.container\/volumes\/picard-vol-dev-db-18-native\/volume.img",
+          "type" : {
+            "volume" : {
+              "cache" : {
+                "on" : {
+
+                }
+              },
+              "format" : "ext4",
+              "name" : "picard-vol-dev-db-18-native",
+              "sync" : {
+                "fsync" : {
+
+                }
+              }
+            }
+          }
+        },
+        {
+          "destination" : "\/etc\/postgresql\/postgresql.conf",
+          "options" : [
+
+          ],
+          "source" : "\/Users\/picard\/gitbase\/v18\/v18-dev\/dev18_native\/postgresql.conf",
+          "type" : {
+            "virtiofs" : {
+
+            }
+          }
+        }
+      ],
+      "networks" : [
+        {
+          "network" : "default",
+          "options" : {
+            "hostname" : "picard-dev-db-18-native",
+            "mtu" : 1280
+          }
+        }
+      ],
+      "platform" : {
+        "architecture" : "arm64",
+        "os" : "linux"
+      },
+      "publishedPorts" : [
+        {
+          "containerPort" : 5432,
+          "count" : 1,
+          "hostAddress" : "0.0.0.0",
+          "hostPort" : 18432,
+          "proto" : "tcp"
+        }
+      ],
+      "publishedSockets" : [
+
+      ],
+      "readOnly" : false,
+      "resources" : {
+        "cpuOverhead" : 1,
+        "cpus" : 4,
+        "memoryInBytes" : 1073741824
+      },
+      "rosetta" : false,
+      "runtimeHandler" : "container-runtime-linux",
+      "shmSize" : 1073741824,
+      "ssh" : false,
+      "stopSignal" : "SIGINT",
+      "sysctls" : {
+
+      },
+      "useInit" : false,
+      "virtualization" : false
+    },
+    "id" : "picard-dev-db-18-native",
+    "status" : {
+      "networks" : [
+        {
+          "hostname" : "picard-dev-db-18-native",
+          "ipv4Address" : "192.168.64.3\/24",
+          "ipv4Gateway" : "192.168.64.1",
+          "ipv6Address" : "fd3f:dacf:2cad:cb27:f021:72ff:feb1:5821\/64",
+          "macAddress" : "f2:21:72:b1:58:21",
+          "mtu" : 1280,
+          "network" : "default"
+        }
+      ],
+      "startedDate" : "2026-07-02T16:05:28Z",
+      "state" : "running"
+    }
+  }
+]
