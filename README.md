@@ -42,7 +42,7 @@ make build
 | Taste | Aktion |
 |---|---|
 | `tab` / `1`–`4` | Tabs: Containers / Volumes / Images / System |
-| `enter` | Container-Details (inkl. Env, Secrets maskiert, CPU/Mem-Sparklines) |
+| `enter` | Aktionsmenü (ctop-Stil): Details, Logs, Shell, Open URL, Start/Stop/Kill/Delete |
 | `l` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
 | `o` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
@@ -76,14 +76,18 @@ columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
   maskiert — Apple Container liefert Env-Variablen sonst im Klartext.
 - Subprozesse laufen ohne Shell-Interpreter (kein `sh -c` mit Nutzereingaben);
   die Exec-Shell ist whitelisted.
+- Container-Logs werden vor dem Rendern von ANSI-/OSC-Escape-Sequenzen und
+  Steuerzeichen befreit (kein Clipboard-Hijack/Titel-Spoofing durch bösartige
+  Container-Ausgaben); Namen gehen mit POSIX-`--`-Terminator an die CLI.
 
-### Neu in v0.3
+### Neu in v0.4
 
-- **System-Tab** (`4`): API-Server-Status/-Version, Ressourcen-Zähler (Container/Volumes/Images), allokierte Volume-Größe
-- **Spalten-Konfiguration**: `columns`-Liste in der config.toml (Auswahl + Reihenfolge) und Toggle-Screen per `c`
-- **Browser-Open** (`o`): erste published TCP-Port-URL (localhost) bzw. Container-IP im Standard-Browser öffnen; Ports auch in der Detail-Ansicht
+- **Container-Aktionsmenü** (`enter`, ctop-Stil): zentriertes Panel mit zustandsabhängigen Aktionen — Navigation `j/k/↑/↓`, Auswahl per `enter` oder Hotkey, `esc` schließt; destruktive Aktionen weiterhin mit Rückfrage
+- **Security-Härtung (v0.3.1)**: Terminal-Escape-Filter für Logs, erweiterte Secret-Redaction (`DB_PASS`, `STRIPE_KEY`, …), Argument-Injection-Schutz
 
-### Roadmap (v0.4)
+Ältere Versionen: siehe [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Roadmap (v0.5)
 
 - Spalten-Persistenz direkt aus der TUI
 - Log-Suche im Logs-Viewer
@@ -122,7 +126,7 @@ make build
 | Key | Action |
 |---|---|
 | `tab` / `1`–`4` | Tabs: containers / volumes / images / system |
-| `enter` | Container details (incl. env, secrets masked, CPU/mem sparklines) |
+| `enter` | Action menu (ctop-style): details, logs, shell, open URL, start/stop/kill/delete |
 | `l` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
 | `o` | Open published port (localhost:…) or container IP in the browser |
@@ -156,14 +160,19 @@ columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
   `[REDACTED]` — Apple Container otherwise exposes env variables in plaintext.
 - Subprocesses run without a shell interpreter (no `sh -c` with user input);
   the exec shell is whitelisted.
+- Container logs are stripped of ANSI/OSC escape sequences and control
+  characters before rendering (no clipboard hijacking/title spoofing via
+  malicious container output); names are passed to the CLI behind the POSIX
+  `--` terminator.
 
-### New in v0.3
+### New in v0.4
 
-- **System tab** (`4`): API server status/version, resource counters (containers/volumes/images), allocated volume size
-- **Column configuration**: `columns` list in config.toml (selection + order) and toggle screen via `c`
-- **Browser-open** (`o`): opens the first published TCP port URL (localhost) or the container IP in the default browser; ports also shown in the detail view
+- **Container action menu** (`enter`, ctop-style): centered panel with state-filtered actions — navigate with `j/k/↑/↓`, select via `enter` or hotkey, `esc` closes; destructive actions still require confirmation
+- **Security hardening (v0.3.1)**: terminal escape filtering for logs, extended secret redaction (`DB_PASS`, `STRIPE_KEY`, …), argument injection protection
 
-### Roadmap (v0.4)
+Older versions: see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Roadmap (v0.5)
 
 - Column persistence directly from the TUI
 - Log search in the logs viewer
