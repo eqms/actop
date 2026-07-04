@@ -37,6 +37,8 @@ type App struct {
 
 	volumes []cli.Volume
 	images  []cli.Image
+	sysInfo *cli.SystemStatus
+	columns []string
 
 	sortField     model.SortField
 	sortReversed  bool
@@ -62,13 +64,35 @@ func NewApp(client cli.Client, cfg config.Config, version string) *App {
 		allContainers: cfg.AllContainers,
 		connOK:        true,
 	}
-	app.tabs = []screen{newGridScreen(app), newVolumesScreen(app), newImagesScreen(app)}
+	app.columns = resolveColumns(cfg.Columns)
+	app.tabs = []screen{newGridScreen(app), newVolumesScreen(app), newImagesScreen(app), newSystemScreen(app)}
 	app.stack = []screen{app.tabs[0]}
 	return app
 }
 
+// resolveColumns validates the configured column keys against the registry
+// and forces "name" to stay first; empty config means all columns.
+func resolveColumns(configured []string) []string {
+	if len(configured) == 0 {
+		out := make([]string, len(allColumnKeys))
+		copy(out, allColumnKeys)
+		return out
+	}
+	known := map[string]bool{}
+	for _, k := range allColumnKeys {
+		known[k] = true
+	}
+	out := []string{"name"}
+	for _, k := range configured {
+		if k != "name" && known[k] {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
 // tabNames labels the base views in the header, index-aligned with tabs.
-var tabNames = []string{"containers", "volumes", "images"}
+var tabNames = []string{"containers", "volumes", "images", "system"}
 
 // switchTab replaces the base screen and fetches the new tab's data.
 func (a *App) switchTab(idx int) tea.Cmd {
@@ -87,6 +111,9 @@ func (a *App) tabFetchCmd() tea.Cmd {
 		return fetchVolumesCmd(a.client)
 	case 2:
 		return fetchImagesCmd(a.client)
+	case 3:
+		// system tab aggregates everything
+		return tea.Batch(fetchSystemStatusCmd(a.client), fetchVolumesCmd(a.client), fetchImagesCmd(a.client))
 	default:
 		return nil
 	}
@@ -198,7 +225,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.String() {
 			case "tab":
 				return a, a.switchTab((a.activeTab + 1) % len(a.tabs))
-			case "1", "2", "3":
+			case "1", "2", "3", "4":
 				return a, a.switchTab(int(m.String()[0] - '1'))
 			}
 		}
@@ -248,6 +275,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.err != nil {
 			a.sysDetail = m.err.Error()
 		} else if m.status != nil {
+			a.sysInfo = m.status
 			a.sysDetail = "system status: " + m.status.Status
 		}
 		return a, nil

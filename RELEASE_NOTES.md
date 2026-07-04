@@ -6,6 +6,20 @@
 
 ## Deutsche Release Notes
 
+### v0.3.0 (2026-07-04)
+
+#### Neue Features
+- **System-Tab** (`4`): API-Server-Status und -Version, App-Root, Ressourcen-Zähler (Container mit Running-Anteil, Volumes, Images), allokierte Volume-Gesamtgröße und Host-Infos
+- **Spalten-Konfiguration**: `columns`-Liste in der config.toml bestimmt Auswahl und Reihenfolge der Grid-Spalten (`name` ist immer aktiv, unbekannte Keys werden ignoriert); Toggle-Screen per `c` für Session-Änderungen
+- **Browser-Open** (`o`): öffnet die erste published TCP-Port-URL (`http://localhost:<hostPort>`, macOS-Port-Forwarding) bzw. als Fallback die Container-IP im Standard-Browser; published Ports werden zusätzlich in der Detail-Ansicht angezeigt
+
+#### Intern
+- `publishedPorts`-Schema gegen die echte CLI verifiziert (Wegwerf-Container mit `-p`), Fixture aktualisiert
+- Spalten-Registry mit Keys (`name`…`ip`) statt fixer Liste — Grundlage für spätere Persistenz aus der TUI
+- Neue Tests: View-Rendering aller Tabs, resolveColumns-Validierung, Spalten-Toggle, WebURL-Konstruktion (tcp/udp/ohne Ports), Ports-Fixture-Parsing
+
+---
+
 ### v0.2.0 (2026-07-04)
 
 #### Neue Features
@@ -44,6 +58,20 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.3.0 (2026-07-04)
+
+#### Added
+- **System tab** (`4`): API server status and version, app root, resource counters (containers with running share, volumes, images), total allocated volume size and host info
+- **Column configuration**: the `columns` list in config.toml controls selection and order of grid columns (`name` is always on, unknown keys are ignored); toggle screen via `c` for session changes
+- **Browser-open** (`o`): opens the first published TCP port URL (`http://localhost:<hostPort>`, macOS port forwarding) or, as fallback, the container IP in the default browser; published ports are also shown in the detail view
+
+#### Internal
+- `publishedPorts` schema verified against the real CLI (throwaway container with `-p`), fixture refreshed
+- Column registry keyed by name (`name`…`ip`) instead of a fixed list — groundwork for future in-TUI persistence
+- New tests: view rendering of all tabs, resolveColumns validation, column toggle, WebURL construction (tcp/udp/no ports), ports fixture parsing
+
+---
 
 ### v0.2.0 (2026-07-04)
 

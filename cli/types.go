@@ -16,13 +16,23 @@ type ListItem struct {
 }
 
 type Configuration struct {
-	ID           string            `json:"id"`
-	CreationDate time.Time         `json:"creationDate"`
-	Image        ImageRef          `json:"image"`
-	InitProcess  InitProcess       `json:"initProcess"`
-	Labels       map[string]string `json:"labels"`
-	Resources    Resources         `json:"resources"`
-	Platform     Platform          `json:"platform"`
+	ID             string            `json:"id"`
+	CreationDate   time.Time         `json:"creationDate"`
+	Image          ImageRef          `json:"image"`
+	InitProcess    InitProcess       `json:"initProcess"`
+	Labels         map[string]string `json:"labels"`
+	Resources      Resources         `json:"resources"`
+	Platform       Platform          `json:"platform"`
+	PublishedPorts []PublishedPort   `json:"publishedPorts"`
+}
+
+// PublishedPort is one -p host:container mapping; the host side is
+// reachable on localhost (macOS 26 port forwarding).
+type PublishedPort struct {
+	HostAddress   string `json:"hostAddress"`
+	HostPort      int    `json:"hostPort"`
+	ContainerPort int    `json:"containerPort"`
+	Proto         string `json:"proto"`
 }
 
 type ImageRef struct {

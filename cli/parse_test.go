@@ -38,6 +38,21 @@ func TestParseListFixture(t *testing.T) {
 	if len(c.Configuration.InitProcess.Environment) == 0 {
 		t.Error("expected environment entries")
 	}
+
+	// the fixture contains one container started with -p 15433:5432
+	var withPorts *ListItem
+	for i := range items {
+		if len(items[i].Configuration.PublishedPorts) > 0 {
+			withPorts = &items[i]
+		}
+	}
+	if withPorts == nil {
+		t.Fatal("expected a fixture container with published ports")
+	}
+	p := withPorts.Configuration.PublishedPorts[0]
+	if p.HostPort != 15433 || p.ContainerPort != 5432 || p.Proto != "tcp" {
+		t.Errorf("unexpected published port: %+v", p)
+	}
 }
 
 func TestParseStatsFixture(t *testing.T) {

@@ -41,10 +41,12 @@ make build
 
 | Taste | Aktion |
 |---|---|
-| `tab` / `1`–`3` | Tabs: Containers / Volumes / Images |
+| `tab` / `1`–`4` | Tabs: Containers / Volumes / Images / System |
 | `enter` | Container-Details (inkl. Env, Secrets maskiert, CPU/Mem-Sparklines) |
 | `l` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
+| `o` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
+| `c` | Grid-Spalten konfigurieren (Session; persistent via config.toml) |
 | `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (mit Rückfrage) |
 | `s` / `r` | Sortierfeld wechseln / Richtung umkehren |
 | `f` | Filter (Name/Image) |
@@ -64,6 +66,7 @@ sortField = "name"       # name|state|cpu|mem|net|io|pids|uptime
 sortReversed = false
 allContainers = true
 shell = ""               # leer = Auto-Erkennung; nur sh/bash/zsh/fish erlaubt
+columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
 ```
 
 ### Sicherheit
@@ -74,16 +77,17 @@ shell = ""               # leer = Auto-Erkennung; nur sh/bash/zsh/fish erlaubt
 - Subprozesse laufen ohne Shell-Interpreter (kein `sh -c` mit Nutzereingaben);
   die Exec-Shell ist whitelisted.
 
-### Neu in v0.2
+### Neu in v0.3
 
-- **Tabs**: Volumes- und Images-Ansicht (`tab` bzw. `1`–`3`), inkl. Delete mit Rückfrage
-- **Sparklines**: CPU-Historie als Spalte im Grid, CPU-/Mem-Verlauf (~2 min) in der Detail-Ansicht
+- **System-Tab** (`4`): API-Server-Status/-Version, Ressourcen-Zähler (Container/Volumes/Images), allokierte Volume-Größe
+- **Spalten-Konfiguration**: `columns`-Liste in der config.toml (Auswahl + Reihenfolge) und Toggle-Screen per `c`
+- **Browser-Open** (`o`): erste published TCP-Port-URL (localhost) bzw. Container-IP im Standard-Browser öffnen; Ports auch in der Detail-Ansicht
 
-### Roadmap (v0.3)
+### Roadmap (v0.4)
 
-- System-Status-Pane
-- Spalten-Konfiguration (Registry ist vorbereitet)
-- Browser-Open für veröffentlichte Ports
+- Spalten-Persistenz direkt aus der TUI
+- Log-Suche im Logs-Viewer
+- Multi-Container-Aktionen
 
 ---
 
@@ -117,10 +121,12 @@ make build
 
 | Key | Action |
 |---|---|
-| `tab` / `1`–`3` | Tabs: containers / volumes / images |
+| `tab` / `1`–`4` | Tabs: containers / volumes / images / system |
 | `enter` | Container details (incl. env, secrets masked, CPU/mem sparklines) |
 | `l` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
+| `o` | Open published port (localhost:…) or container IP in the browser |
+| `c` | Configure grid columns (session; persist via config.toml) |
 | `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (with confirmation) |
 | `s` / `r` | Cycle sort field / reverse order |
 | `f` | Filter (name/image) |
@@ -140,6 +146,7 @@ sortField = "name"       # name|state|cpu|mem|net|io|pids|uptime
 sortReversed = false
 allContainers = true
 shell = ""               # empty = auto-detect; only sh/bash/zsh/fish allowed
+columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
 ```
 
 ### Security
@@ -150,16 +157,17 @@ shell = ""               # empty = auto-detect; only sh/bash/zsh/fish allowed
 - Subprocesses run without a shell interpreter (no `sh -c` with user input);
   the exec shell is whitelisted.
 
-### New in v0.2
+### New in v0.3
 
-- **Tabs**: volumes and images views (`tab` or `1`–`3`), incl. delete with confirmation
-- **Sparklines**: CPU history column in the grid, CPU/mem trend (~2 min) in the detail view
+- **System tab** (`4`): API server status/version, resource counters (containers/volumes/images), allocated volume size
+- **Column configuration**: `columns` list in config.toml (selection + order) and toggle screen via `c`
+- **Browser-open** (`o`): opens the first published TCP port URL (localhost) or the container IP in the default browser; ports also shown in the detail view
 
-### Roadmap (v0.3)
+### Roadmap (v0.4)
 
-- System status pane
-- Column configuration (registry is prepared)
-- Browser-open for published ports
+- Column persistence directly from the TUI
+- Log search in the logs viewer
+- Multi-container actions
 
 ---
 

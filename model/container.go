@@ -3,6 +3,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/eqms/actop/cli"
@@ -20,8 +21,23 @@ type Container struct {
 	IP      string
 	CPUs    int
 	Env     []string
+	Ports   []cli.PublishedPort
 	Sample  metrics.Sample
 	History *History
+}
+
+// WebURL returns the address to open in a browser: the first published
+// TCP port on localhost (macOS forwards it), else the container's vmnet IP.
+func (c *Container) WebURL() string {
+	for _, p := range c.Ports {
+		if p.Proto == "" || p.Proto == "tcp" {
+			return fmt.Sprintf("http://localhost:%d", p.HostPort)
+		}
+	}
+	if c.IP != "" {
+		return "http://" + c.IP
+	}
+	return ""
 }
 
 // History keeps recent metric samples for sparkline rendering.
@@ -45,6 +61,7 @@ func fromListItem(it cli.ListItem) *Container {
 		Created: it.Configuration.CreationDate,
 		CPUs:    it.Configuration.Resources.CPUs,
 		Env:     it.Configuration.InitProcess.Environment,
+		Ports:   it.Configuration.PublishedPorts,
 	}
 	if it.Status != nil {
 		c.State = it.Status.State

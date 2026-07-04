@@ -55,6 +55,13 @@ func (d *detailScreen) content() string {
 		line("started", c.Started.Local().Format("2006-01-02 15:04:05"))
 	}
 	line("ip", c.IP)
+	if len(c.Ports) > 0 {
+		ports := make([]string, len(c.Ports))
+		for i, p := range c.Ports {
+			ports[i] = fmt.Sprintf("localhost:%d→%d/%s", p.HostPort, p.ContainerPort, p.Proto)
+		}
+		line("ports", strings.Join(ports, ", "))
+	}
 	line("cpus", fmt.Sprintf("%d", c.CPUs))
 	if c.Sample.MemLimit > 0 {
 		line("memory", byteSize(c.Sample.MemUsage)+" / "+byteSize(c.Sample.MemLimit))

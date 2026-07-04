@@ -13,11 +13,12 @@ import (
 )
 
 type Config struct {
-	PollIntervalMs int    `toml:"pollIntervalMs"`
-	SortField      string `toml:"sortField"`
-	SortReversed   bool   `toml:"sortReversed"`
-	AllContainers  bool   `toml:"allContainers"`
-	Shell          string `toml:"shell"`
+	PollIntervalMs int      `toml:"pollIntervalMs"`
+	SortField      string   `toml:"sortField"`
+	SortReversed   bool     `toml:"sortReversed"`
+	AllContainers  bool     `toml:"allContainers"`
+	Shell          string   `toml:"shell"`
+	Columns        []string `toml:"columns"`
 }
 
 func Default() Config {

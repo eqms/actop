@@ -76,6 +76,26 @@ func TestSnapshotFilterAndSort(t *testing.T) {
 	}
 }
 
+func TestWebURL(t *testing.T) {
+	withPort := &Container{
+		IP:    "192.168.64.9",
+		Ports: []cli.PublishedPort{{HostPort: 8080, ContainerPort: 80, Proto: "tcp"}},
+	}
+	if got := withPort.WebURL(); got != "http://localhost:8080" {
+		t.Errorf("WebURL with port = %q", got)
+	}
+	udpOnly := &Container{
+		IP:    "192.168.64.9",
+		Ports: []cli.PublishedPort{{HostPort: 53, Proto: "udp"}},
+	}
+	if got := udpOnly.WebURL(); got != "http://192.168.64.9" {
+		t.Errorf("WebURL udp-only must fall back to IP, got %q", got)
+	}
+	if got := (&Container{}).WebURL(); got != "" {
+		t.Errorf("WebURL without port/IP must be empty, got %q", got)
+	}
+}
+
 func TestNextSortField(t *testing.T) {
 	if NextSortField(SortName) != SortState {
 		t.Error("cycle name->state broken")

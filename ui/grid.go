@@ -106,6 +106,15 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		if c := g.selected(); c != nil && c.Running() {
 			return g, execShellCmd(g.app.client, g.app.cfg, c.ID)
 		}
+	case "o":
+		if c := g.selected(); c != nil && c.Running() {
+			if url := c.WebURL(); url != "" {
+				return g, openURLCmd(url)
+			}
+			g.app.statusMsg = "no published port or IP to open"
+		}
+	case "c":
+		return g, g.app.push(newColumnsScreen(g.app))
 	case "S":
 		if c := g.selected(); c != nil && !c.Running() {
 			return g, g.app.push(confirmAction(g.app, "start", c.ID))
@@ -127,55 +136,80 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 }
 
 type column struct {
+	key   string
 	title string
 	width int
 	cell  func(c *model.Container, now time.Time) string
 }
 
-func gridColumns(nameWidth int) []column {
+// allColumnKeys is the registry order; config `columns` and the toggle
+// screen (key c) select and order a subset. "name" is always shown.
+var allColumnKeys = []string{"name", "state", "cpu", "hist", "mem", "net", "io", "pids", "uptime", "ip"}
+
+func allColumns(nameWidth int) map[string]column {
+	cols := map[string]column{}
+	for _, c := range gridColumnDefs(nameWidth) {
+		cols[c.key] = c
+	}
+	return cols
+}
+
+// gridColumns resolves the enabled keys (in order) to column definitions.
+func gridColumns(enabled []string, nameWidth int) []column {
+	defs := allColumns(nameWidth)
+	out := make([]column, 0, len(enabled))
+	for _, key := range enabled {
+		if col, ok := defs[key]; ok {
+			out = append(out, col)
+		}
+	}
+	return out
+}
+
+func gridColumnDefs(nameWidth int) []column {
 	return []column{
-		{"NAME", nameWidth, func(c *model.Container, _ time.Time) string { return c.ID }},
-		{"STATE", 8, func(c *model.Container, _ time.Time) string { return c.State }},
-		{"CPU", 7, func(c *model.Container, _ time.Time) string {
+		{"name", "NAME", nameWidth, func(c *model.Container, _ time.Time) string { return c.ID }},
+		{"state", "STATE", 8, func(c *model.Container, _ time.Time) string { return c.State }},
+		{"cpu", "CPU", 7, func(c *model.Container, _ time.Time) string {
 			if !c.Sample.HasRates {
 				return "-"
 			}
 			return fmt.Sprintf("%.1f%%", c.Sample.CPUPercent)
 		}},
-		{"HIST", 12, func(c *model.Container, _ time.Time) string {
+		{"hist", "HIST", 12, func(c *model.Container, _ time.Time) string {
 			if c.History == nil || c.History.CPU.Len() == 0 {
 				return "-"
 			}
 			return sparkline(c.History.CPU.Values(), 12, 10)
 		}},
-		{"MEM", 12, func(c *model.Container, _ time.Time) string {
+		{"mem", "MEM", 12, func(c *model.Container, _ time.Time) string {
 			if c.Sample.MemLimit == 0 {
 				return "-"
 			}
 			return byteSize(c.Sample.MemUsage) + "/" + byteSize(c.Sample.MemLimit)
 		}},
-		{"NET RX/TX", 16, func(c *model.Container, _ time.Time) string {
+		{"net", "NET RX/TX", 16, func(c *model.Container, _ time.Time) string {
 			if !c.Sample.HasRates {
 				return "-"
 			}
 			return rate(c.Sample.NetRxRate) + " / " + rate(c.Sample.NetTxRate)
 		}},
-		{"IO R/W", 16, func(c *model.Container, _ time.Time) string {
+		{"io", "IO R/W", 16, func(c *model.Container, _ time.Time) string {
 			if !c.Sample.HasRates {
 				return "-"
 			}
 			return rate(c.Sample.IOReadRate) + " / " + rate(c.Sample.IOWriteRate)
 		}},
-		{"PIDS", 5, func(c *model.Container, _ time.Time) string {
+		{"pids", "PIDS", 5, func(c *model.Container, _ time.Time) string {
 			if c.Sample.PIDs == 0 {
 				return "-"
 			}
 			return fmt.Sprintf("%d", c.Sample.PIDs)
 		}},
-		{"UPTIME", 8, func(c *model.Container, now time.Time) string {
+		{"uptime", "UPTIME", 8, func(c *model.Container, now time.Time) string {
 			return shortDuration(c.Uptime(now))
 		}},
-		{"IP", 15, func(c *model.Container, _ time.Time) string {
+		{"ip", "IP", 15, func(c *model.Container, _ time.Time) string {
 			if c.IP == "" {
 				return "-"
 			}
@@ -194,7 +228,7 @@ func (g *gridScreen) view(width, height int) string {
 			nameWidth = len(c.ID)
 		}
 	}
-	cols := gridColumns(nameWidth)
+	cols := gridColumns(g.app.columns, nameWidth)
 
 	var b strings.Builder
 	head := make([]string, len(cols))

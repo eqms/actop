@@ -188,6 +188,70 @@ func TestVolumeDeleteConfirm(t *testing.T) {
 	}
 }
 
+func TestResolveColumns(t *testing.T) {
+	all := resolveColumns(nil)
+	if len(all) != len(allColumnKeys) {
+		t.Errorf("empty config must enable all columns, got %v", all)
+	}
+	custom := resolveColumns([]string{"cpu", "mem", "bogus"})
+	want := []string{"name", "cpu", "mem"}
+	if len(custom) != 3 || custom[0] != want[0] || custom[1] != want[1] || custom[2] != want[2] {
+		t.Errorf("resolveColumns = %v, want %v (name forced, bogus dropped)", custom, want)
+	}
+}
+
+func TestColumnsToggle(t *testing.T) {
+	app, _ := testApp()
+	app.Update(key('c'))
+	cs, ok := app.top().(*columnsScreen)
+	if !ok {
+		t.Fatalf("expected columns screen, got %T", app.top())
+	}
+	cs.toggle("state")
+	if cs.enabled("state") {
+		t.Error("state should be disabled after toggle")
+	}
+	cs.toggle("state")
+	if !cs.enabled("state") {
+		t.Error("state should be re-enabled in registry order")
+	}
+	cs.toggle("name")
+	if !cs.enabled("name") {
+		t.Error("name must be locked on")
+	}
+}
+
+func TestSystemTab(t *testing.T) {
+	app, _ := testApp()
+	_, cmd := app.Update(key('4'))
+	if _, ok := app.top().(*systemScreen); !ok {
+		t.Fatalf("expected system tab, got %T", app.top())
+	}
+	if cmd == nil {
+		t.Error("system tab must fetch status/volumes/images")
+	}
+	app.Update(systemStatusMsg{status: &cli.SystemStatus{Status: "running", APIServerVersion: "v1"}})
+	if app.sysInfo == nil || app.sysInfo.Status != "running" {
+		t.Errorf("system status not stored: %+v", app.sysInfo)
+	}
+}
+
+func TestViewRendersAllTabs(t *testing.T) {
+	app, _ := testApp()
+	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	app.Update(listResultMsg{items: []cli.ListItem{{
+		ID:     "db",
+		Status: &cli.Status{State: "running"},
+	}}})
+	for i := 0; i < 4; i++ {
+		app.switchTab(i)
+		out := app.View()
+		if out == "" {
+			t.Errorf("tab %d renders empty view", i)
+		}
+	}
+}
+
 func TestTickSchedulesPoll(t *testing.T) {
 	app, _ := testApp()
 	_, cmd := app.Update(tickMsg(time.Now()))

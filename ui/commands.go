@@ -3,6 +3,7 @@ package ui
 import (
 	"bufio"
 	"context"
+	"os/exec"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -97,6 +98,15 @@ func actionCmd(c cli.Client, action, id string) tea.Cmd {
 			err = c.Delete(ctx, id)
 		}
 		return actionDoneMsg{action: action, id: id, err: err}
+	}
+}
+
+// openURLCmd opens the URL in the default browser via macOS open(1).
+// URLs are built exclusively from parsed CLI data, never from user input.
+func openURLCmd(url string) tea.Cmd {
+	return func() tea.Msg {
+		err := exec.Command("open", url).Start()
+		return actionDoneMsg{action: "open", id: url, err: err}
 	}
 }
 
