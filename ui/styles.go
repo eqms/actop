@@ -12,6 +12,11 @@ var (
 	styleErr      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
 	styleDim      = lipgloss.NewStyle().Faint(true)
 	styleTitle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+
+	styleMenuPanel = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("6")).
+			Padding(0, 2)
 )
 
 func stateStyle(state string) lipgloss.Style {

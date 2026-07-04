@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/eqms/actop/model"
 )
@@ -111,6 +114,25 @@ func (m *menuScreen) move(delta int) {
 	}
 }
 
-// view is completed in the rendering task; minimal placeholder so
-// menuScreen satisfies the screen interface.
-func (m *menuScreen) view(width, height int) string { return "" }
+// menuWidth is the inner label column width; hotkeys render right of it.
+const menuWidth = 16
+
+func (m *menuScreen) view(width, height int) string {
+	var b strings.Builder
+	b.WriteString(styleTitle.Render(m.id) + "\n\n")
+	for i, it := range m.items {
+		if it.build == nil {
+			b.WriteString("  " + styleDim.Render(strings.Repeat("─", menuWidth+6)) + "\n")
+			continue
+		}
+		label := pad(it.label, menuWidth)
+		if i == m.cursor {
+			b.WriteString("▸ " + styleSelected.Render(label) + " " + styleDim.Render(it.hotkey) + "\n")
+		} else {
+			b.WriteString("  " + label + " " + styleDim.Render(it.hotkey) + "\n")
+		}
+	}
+	b.WriteString("\n" + styleDim.Render("↑/↓ select · enter · esc"))
+	panel := styleMenuPanel.Render(b.String())
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, panel)
+}

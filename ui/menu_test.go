@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -154,5 +155,16 @@ func TestMenuEscCloses(t *testing.T) {
 	next, cmd := m.update(tea.KeyMsg{Type: tea.KeyEsc})
 	if next != nil || cmd != nil {
 		t.Errorf("esc = (%T, %v), want (nil, nil)", next, cmd)
+	}
+}
+
+func TestMenuViewRendersItemsAndTitle(t *testing.T) {
+	app, _ := testApp()
+	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
+	out := m.view(80, 24)
+	for _, want := range []string{"db", "Details", "Logs", "Shell", "Stop", "Kill", "Delete"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("view missing %q", want)
+		}
 	}
 }
