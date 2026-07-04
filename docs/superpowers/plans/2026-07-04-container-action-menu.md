@@ -364,6 +364,16 @@ func (m *menuScreen) move(delta int) {
 }
 ```
 
+Also append a minimal placeholder so `*menuScreen` satisfies the `screen`
+interface (the `update` return type requires it at compile time); Task 3
+replaces this with the real implementation:
+
+```go
+// view is completed in the rendering task; minimal placeholder so
+// menuScreen satisfies the screen interface.
+func (m *menuScreen) view(width, height int) string { return "" }
+```
+
 Note: the "Details" item's displayed hotkey is `enter`, which is already
 handled by the `enter` case — the hotkey loop never sees it. That is
 intentional (enter = run selection).
@@ -426,7 +436,9 @@ Add to `ui/styles.go` (inside the existing `var (...)` block):
 			Padding(0, 2)
 ```
 
-Append to `ui/menu.go` (add `"strings"` and `"github.com/charmbracelet/lipgloss"` to imports):
+In `ui/menu.go`, replace Task 2's placeholder `view` with the real
+implementation (add `"strings"` and `"github.com/charmbracelet/lipgloss"`
+to imports):
 
 ```go
 // menuWidth is the inner label column width; hotkeys render right of it.
