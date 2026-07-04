@@ -167,4 +167,58 @@ func TestMenuViewRendersItemsAndTitle(t *testing.T) {
 			t.Errorf("view missing %q", want)
 		}
 	}
+
+	// The cursor marker must appear on exactly one line, and that line
+	// must be the initially selected "Details" row.
+	lines := strings.Split(out, "\n")
+	markerLines := 0
+	for _, line := range lines {
+		if strings.Contains(line, "▸") {
+			markerLines++
+			if !strings.Contains(line, "Details") {
+				t.Errorf("cursor marker line = %q, want it to contain %q", line, "Details")
+			}
+		}
+	}
+	if markerLines != 1 {
+		t.Errorf("cursor marker lines = %d, want exactly 1", markerLines)
+	}
+
+	if !strings.Contains(out, "↑/↓ select · enter · esc") {
+		t.Error("view missing footer hint")
+	}
+
+	if !strings.Contains(out, strings.Repeat("─", 10)) {
+		t.Error("view missing separator rule")
+	}
+
+	if !strings.Contains(out, "╭") {
+		t.Error("view missing rounded panel border")
+	}
+
+	if !strings.Contains(out, "enter") {
+		t.Error("view missing enter hotkey text")
+	}
+
+	stopFound, deleteFound := false, false
+	for _, line := range lines {
+		if strings.Contains(line, "Stop") {
+			stopFound = true
+			if !strings.Contains(line, "X") {
+				t.Errorf("Stop line = %q, want it to contain hotkey %q", line, "X")
+			}
+		}
+		if strings.Contains(line, "Delete") {
+			deleteFound = true
+			if !strings.Contains(line, "D") {
+				t.Errorf("Delete line = %q, want it to contain hotkey %q", line, "D")
+			}
+		}
+	}
+	if !stopFound {
+		t.Error("view missing Stop line")
+	}
+	if !deleteFound {
+		t.Error("view missing Delete line")
+	}
 }
