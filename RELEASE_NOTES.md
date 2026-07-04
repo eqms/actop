@@ -6,6 +6,15 @@
 
 ## Deutsche Release Notes
 
+### v0.3.1 (2026-07-04)
+
+#### Sicherheit
+- **Terminal-Escape-Filter für Container-Logs**: Log-Zeilen werden vor dem Rendern von ANSI-/OSC-Sequenzen und Steuerzeichen befreit (neues `redact.Line`); verhindert Clipboard-Manipulation (OSC 52), Titel-Spoofing und Terminal-Abfragen durch bösartige Container-Ausgaben
+- **Erweiterte Secret-Redaction**: Env-Variablen wie `DB_PASS`, `MYSQL_PWD`, `STRIPE_KEY`, `SIGNING_KEY`, `KEY_FILE` werden jetzt ebenfalls maskiert (tokenbasierte `PASS`/`PWD`/`KEY`-Erkennung, `COMPASS_URL`/`KEYBOARD_LAYOUT` bleiben sichtbar)
+- **Argument-Injection-Härtung**: Alle Container-/Volume-/Image-Namen werden mit POSIX-`--`-Terminator an die `container`-CLI übergeben (inspect, start, stop, kill, delete, logs, exec, volume/image delete); Namen mit führendem `-` können nicht mehr als Flags interpretiert werden
+
+---
+
 ### v0.3.0 (2026-07-04)
 
 #### Neue Features
@@ -58,6 +67,15 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.3.1 (2026-07-04)
+
+#### Security
+- **Terminal escape filtering for container logs**: log lines are stripped of ANSI/OSC sequences and control characters before rendering (new `redact.Line`); prevents clipboard manipulation (OSC 52), title spoofing and terminal queries from malicious container output
+- **Extended secret redaction**: env variables such as `DB_PASS`, `MYSQL_PWD`, `STRIPE_KEY`, `SIGNING_KEY`, `KEY_FILE` are now masked as well (token-based `PASS`/`PWD`/`KEY` matching; `COMPASS_URL`/`KEYBOARD_LAYOUT` stay visible)
+- **Argument injection hardening**: all container/volume/image names are passed to the `container` CLI behind the POSIX `--` terminator (inspect, start, stop, kill, delete, logs, exec, volume/image delete); names starting with `-` can no longer be parsed as flags
+
+---
 
 ### v0.3.0 (2026-07-04)
 

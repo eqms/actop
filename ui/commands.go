@@ -10,6 +10,7 @@ import (
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
+	"github.com/eqms/actop/redact"
 )
 
 const (
@@ -155,7 +156,9 @@ func startLogSession(c cli.Client, id string) (*logSession, tea.Cmd, error) {
 		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for sc.Scan() {
 			select {
-			case ch <- logLineMsg{line: sc.Text()}:
+			// Container stdout is untrusted: strip escape sequences and
+			// control chars before the line reaches the terminal renderer.
+			case ch <- logLineMsg{line: redact.Line(sc.Text())}:
 			case <-done:
 				return
 			}

@@ -63,7 +63,7 @@ func (c *ExecClient) Stats(ctx context.Context) ([]StatsEntry, error) {
 }
 
 func (c *ExecClient) Inspect(ctx context.Context, id string) (*ListItem, error) {
-	out, err := c.run(ctx, "inspect", id)
+	out, err := c.run(ctx, "inspect", "--", id)
 	if err != nil {
 		return nil, err
 	}
@@ -114,33 +114,36 @@ func (c *ExecClient) Images(ctx context.Context) ([]Image, error) {
 	return imgs, nil
 }
 
+// Names and IDs are user-chosen and could start with "-"; the POSIX "--"
+// terminator keeps the CLI from parsing them as flags.
+
 func (c *ExecClient) VolumeDelete(ctx context.Context, name string) error {
-	_, err := c.run(ctx, "volume", "delete", name)
+	_, err := c.run(ctx, "volume", "delete", "--", name)
 	return err
 }
 
 func (c *ExecClient) ImageDelete(ctx context.Context, ref string) error {
-	_, err := c.run(ctx, "image", "delete", ref)
+	_, err := c.run(ctx, "image", "delete", "--", ref)
 	return err
 }
 
 func (c *ExecClient) Start(ctx context.Context, id string) error {
-	_, err := c.run(ctx, "start", id)
+	_, err := c.run(ctx, "start", "--", id)
 	return err
 }
 
 func (c *ExecClient) Stop(ctx context.Context, id string) error {
-	_, err := c.run(ctx, "stop", id)
+	_, err := c.run(ctx, "stop", "--", id)
 	return err
 }
 
 func (c *ExecClient) Kill(ctx context.Context, id string) error {
-	_, err := c.run(ctx, "kill", id)
+	_, err := c.run(ctx, "kill", "--", id)
 	return err
 }
 
 func (c *ExecClient) Delete(ctx context.Context, id string) error {
-	_, err := c.run(ctx, "delete", id)
+	_, err := c.run(ctx, "delete", "--", id)
 	return err
 }
 
@@ -149,11 +152,11 @@ func (c *ExecClient) LogsCmd(id string, follow bool) *exec.Cmd {
 	if follow {
 		args = append(args, "--follow")
 	}
-	args = append(args, id)
+	args = append(args, "--", id)
 	return exec.Command(binary, args...)
 }
 
 func (c *ExecClient) ExecCmd(id string, shell ...string) *exec.Cmd {
-	args := append([]string{"exec", "-it", id}, shell...)
+	args := append([]string{"exec", "-it", "--", id}, shell...)
 	return exec.Command(binary, args...)
 }

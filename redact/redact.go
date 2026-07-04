@@ -9,7 +9,10 @@ import "regexp"
 const Redacted = "[REDACTED]"
 
 // secretKeyPattern matches env var names that commonly hold credentials.
-var secretKeyPattern = regexp.MustCompile(`(?i)(secret|passwd|password|token|api_?key|access_?key|private_?key|credential|auth|dsn|cert|cookie|jwt)`)
+// PASS/PWD/KEY match only as underscore-delimited tokens so that names
+// like COMPASS_URL or KEYBOARD_LAYOUT stay visible; when in doubt the
+// pattern errs on the side of redacting.
+var secretKeyPattern = regexp.MustCompile(`(?i)(secret|passwd|password|(^|_)pass(_|$)|(^|_)pwd(_|$)|token|api_?key|access_?key|private_?key|(^|_)key(_|$)|credential|auth|dsn|cert|cookie|jwt)`)
 
 // credentialValuePattern matches connection-string values that embed
 // credentials regardless of the key name, e.g. postgres://user:pass@host/db.
