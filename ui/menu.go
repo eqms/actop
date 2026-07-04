@@ -74,3 +74,43 @@ func buildConfirm(action string) func(*menuScreen) (screen, tea.Cmd) {
 		return confirmAction(m.app, action, m.id), nil
 	}
 }
+
+func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
+	key, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return m, nil
+	}
+	switch key.String() {
+	case "esc", "q":
+		return nil, nil
+	case "j", "down":
+		m.move(1)
+	case "k", "up":
+		m.move(-1)
+	case "enter":
+		return m.items[m.cursor].build(m)
+	default:
+		for _, it := range m.items {
+			if it.build != nil && it.hotkey == key.String() {
+				return it.build(m)
+			}
+		}
+	}
+	return m, nil
+}
+
+// move shifts the cursor by delta, skipping separators and clamping
+// at both ends.
+func (m *menuScreen) move(delta int) {
+	i := m.cursor + delta
+	for i >= 0 && i < len(m.items) && m.items[i].build == nil {
+		i += delta
+	}
+	if i >= 0 && i < len(m.items) {
+		m.cursor = i
+	}
+}
+
+// view is completed in the rendering task; minimal placeholder so
+// menuScreen satisfies the screen interface.
+func (m *menuScreen) view(width, height int) string { return "" }
