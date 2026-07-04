@@ -6,6 +6,13 @@
 
 ## Deutsche Release Notes
 
+### v0.4.0 (2026-07-04)
+
+#### Neue Features
+- **Container-Aktionsmenü** (`enter`, ctop-Stil): zentriertes Panel mit zustandsabhängigen Aktionen — laufend: Details, Logs, Shell, Open URL (falls Port/IP), Stop, Kill, Delete; gestoppt: Details, Logs, Start, Delete. Navigation mit `j/k/↑/↓`, Auswahl per `enter` oder Aktions-Hotkey, `esc` schließt. Destruktive Aktionen behalten den Bestätigungsdialog; die direkten Grid-Hotkeys bleiben erhalten.
+
+---
+
 ### v0.3.1 (2026-07-04)
 
 #### Sicherheit
@@ -67,6 +74,13 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.4.0 (2026-07-04)
+
+#### Added
+- **Container action menu** (`enter`, ctop-style): centered panel with state-filtered actions — running: Details, Logs, Shell, Open URL (if port/IP), Stop, Kill, Delete; stopped: Details, Logs, Start, Delete. Navigate with `j/k/↑/↓`, select via `enter` or the action hotkey, `esc` closes. Destructive actions keep the confirmation dialog; direct grid hotkeys remain available.
+
+---
 
 ### v0.3.1 (2026-07-04)
 
