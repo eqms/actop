@@ -222,3 +222,65 @@ func TestMenuViewRendersItemsAndTitle(t *testing.T) {
 		t.Error("view missing Delete line")
 	}
 }
+
+func TestEnterOnGridOpensMenu(t *testing.T) {
+	app, _ := testApp()
+	app.Update(listResultMsg{items: []cli.ListItem{{
+		ID:     "db",
+		Status: &cli.Status{State: "running"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, ok := app.top().(*menuScreen)
+	if !ok {
+		t.Fatalf("expected menu screen on top, got %T", app.top())
+	}
+	if m.id != "db" {
+		t.Errorf("menu id = %q, want db", m.id)
+	}
+}
+
+func TestMenuStopFlowCallsClient(t *testing.T) {
+	app, mock := testApp()
+	app.Update(listResultMsg{items: []cli.ListItem{{
+		ID:     "db",
+		Status: &cli.Status{State: "running"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // open menu
+	app.Update(key('X'))                       // menu hotkey -> confirm
+	if _, ok := app.top().(*confirmScreen); !ok {
+		t.Fatalf("expected confirm screen, got %T", app.top())
+	}
+	_, cmd := app.Update(key('y'))
+	if cmd == nil {
+		t.Fatal("expected action command from confirm")
+	}
+	cmd()
+	found := false
+	for _, c := range mock.Calls {
+		if c.Method == "Stop" && c.ID == "db" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Stop not called via menu flow: %+v", mock.Calls)
+	}
+	if _, ok := app.top().(*gridScreen); !ok {
+		t.Errorf("stack not back on grid, top is %T", app.top())
+	}
+}
+
+func TestMenuEscReturnsToGrid(t *testing.T) {
+	app, mock := testApp()
+	app.Update(listResultMsg{items: []cli.ListItem{{
+		ID:     "db",
+		Status: &cli.Status{State: "running"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if _, ok := app.top().(*gridScreen); !ok {
+		t.Fatalf("expected grid after esc, got %T", app.top())
+	}
+	if len(mock.Calls) != 0 {
+		t.Errorf("no client calls expected, got %+v", mock.Calls)
+	}
+}

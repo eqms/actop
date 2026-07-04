@@ -20,7 +20,7 @@ func (h *helpScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 var helpEntries = [][2]string{
 	{"tab", "cycle tabs (containers/volumes/images/system)"},
 	{"1-4", "switch tab directly"},
-	{"enter", "container details (with CPU/mem sparklines)"},
+	{"enter", "container action menu (details, logs, shell, ...)"},
 	{"l", "logs (follow)"},
 	{"e", "exec shell"},
 	{"o", "open published port / IP in browser"},

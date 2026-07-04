@@ -96,7 +96,7 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		return g, g.app.push(newHelpScreen())
 	case "enter":
 		if c := g.selected(); c != nil {
-			return g, g.app.push(newDetailScreen(g.app, c.ID))
+			return g, g.app.push(newMenuScreen(g.app, c))
 		}
 	case "l":
 		if c := g.selected(); c != nil {
