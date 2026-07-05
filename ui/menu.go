@@ -9,72 +9,77 @@ import (
 	"github.com/eqms/actop/model"
 )
 
-// menuItem is one selectable action in the container menu.
-// A nil build func marks the separator between navigation and
-// destructive actions.
+// menuItem is one entry in an action menu. Disabled entries stay visible
+// but dimmed (ctop keeps the full list so the layout never shifts) and are
+// skipped by the cursor.
 type menuItem struct {
-	label  string
-	hotkey string
-	build  func(m *menuScreen) (screen, tea.Cmd)
+	label    string
+	disabled bool
+	build    func(m *menuScreen) (screen, tea.Cmd)
 }
 
-// menuScreen is the ctop-style per-container action menu. It captures
-// only the container ID; the item list is a state snapshot from open time.
+// menuScreen is the ctop-style action menu, generic over its target: the
+// items capture what they act on in closures at open time.
 type menuScreen struct {
 	app    *App
-	id     string
+	title  string
 	items  []menuItem
 	cursor int
 }
 
-// newMenuScreen builds the state-filtered item list. Running containers
-// get the full action set, stopped ones only what applies to them.
-func newMenuScreen(app *App, c *model.Container) *menuScreen {
-	m := &menuScreen{app: app, id: c.ID}
-	m.items = []menuItem{
-		{label: "Details", hotkey: "enter", build: buildDetail},
-		{label: "Logs", hotkey: "l", build: buildLogs},
-	}
-	if c.Running() {
-		m.items = append(m.items, menuItem{label: "Shell", hotkey: "e", build: buildShell})
-		if url := c.WebURL(); url != "" {
-			m.items = append(m.items, menuItem{label: "Open URL", hotkey: "o",
-				build: func(m *menuScreen) (screen, tea.Cmd) { return nil, openURLCmd(url) }})
+// newMenuScreen places the cursor on the first enabled item.
+func newMenuScreen(app *App, title string, items []menuItem) *menuScreen {
+	m := &menuScreen{app: app, title: title, items: items}
+	for i, it := range items {
+		if !it.disabled {
+			m.cursor = i
+			break
 		}
-		m.items = append(m.items,
-			menuItem{}, // separator
-			menuItem{label: "Stop", hotkey: "X", build: buildConfirm("stop")},
-			menuItem{label: "Kill", hotkey: "K", build: buildConfirm("kill")},
-			menuItem{label: "Delete", hotkey: "D", build: buildConfirm("delete")},
-		)
-	} else {
-		m.items = append(m.items,
-			menuItem{}, // separator
-			menuItem{label: "Start", hotkey: "S", build: buildConfirm("start")},
-			menuItem{label: "Delete", hotkey: "D", build: buildConfirm("delete")},
-		)
 	}
 	return m
 }
 
-func buildDetail(m *menuScreen) (screen, tea.Cmd) {
-	return newDetailScreen(m.app, m.id), nil
+// cancelItem closes the menu; ctop lists it as the last entry.
+func cancelItem() menuItem {
+	return menuItem{label: "Cancel", build: func(m *menuScreen) (screen, tea.Cmd) {
+		return nil, nil
+	}}
 }
 
-// buildLogs starts streaming itself because the screen replaces the menu
-// instead of going through App.push (which normally calls start).
-func buildLogs(m *menuScreen) (screen, tea.Cmd) {
-	l := newLogsScreen(m.app, m.id)
-	return l, l.start()
+// newContainerMenu builds the fixed container action list. Entries that do
+// not apply to the container's current state are disabled, not hidden.
+func newContainerMenu(app *App, c *model.Container) *menuScreen {
+	id := c.ID
+	url := c.WebURL()
+	running := c.Running()
+	items := []menuItem{
+		{label: "Details", build: func(m *menuScreen) (screen, tea.Cmd) {
+			return newDetailScreen(m.app, id), nil
+		}},
+		{label: "Logs", build: func(m *menuScreen) (screen, tea.Cmd) {
+			// starts streaming itself: menu selection replaces the menu via
+			// routeToTop instead of App.push (which normally calls start)
+			l := newLogsScreen(m.app, id)
+			return l, l.start()
+		}},
+		{label: "Shell", disabled: !running, build: func(m *menuScreen) (screen, tea.Cmd) {
+			return nil, execShellCmd(m.app.client, m.app.cfg, id)
+		}},
+		{label: "Open URL", disabled: !running || url == "", build: func(m *menuScreen) (screen, tea.Cmd) {
+			return nil, openURLCmd(url)
+		}},
+		{label: "Start", disabled: running, build: confirmItem("start", id)},
+		{label: "Stop", disabled: !running, build: confirmItem("stop", id)},
+		{label: "Kill", disabled: !running, build: confirmItem("kill", id)},
+		{label: "Delete", build: confirmItem("delete", id)},
+		cancelItem(),
+	}
+	return newMenuScreen(app, c.ID, items)
 }
 
-func buildShell(m *menuScreen) (screen, tea.Cmd) {
-	return nil, execShellCmd(m.app.client, m.app.cfg, m.id)
-}
-
-func buildConfirm(action string) func(*menuScreen) (screen, tea.Cmd) {
+func confirmItem(action, id string) func(*menuScreen) (screen, tea.Cmd) {
 	return func(m *menuScreen) (screen, tea.Cmd) {
-		return confirmAction(m.app, action, m.id), nil
+		return confirmAction(m.app, action, id), nil
 	}
 }
 
@@ -91,22 +96,19 @@ func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	case "k", "up":
 		m.move(-1)
 	case "enter":
-		return m.items[m.cursor].build(m)
-	default:
-		for _, it := range m.items {
-			if it.build != nil && it.hotkey == key.String() {
-				return it.build(m)
-			}
+		// cursor can only rest on enabled items; guard stays for safety
+		if it := m.items[m.cursor]; !it.disabled {
+			return it.build(m)
 		}
 	}
 	return m, nil
 }
 
-// move shifts the cursor by delta, skipping separators and clamping
+// move shifts the cursor by delta, skipping disabled entries and clamping
 // at both ends.
 func (m *menuScreen) move(delta int) {
 	i := m.cursor + delta
-	for i >= 0 && i < len(m.items) && m.items[i].build == nil {
+	for i >= 0 && i < len(m.items) && m.items[i].disabled {
 		i += delta
 	}
 	if i >= 0 && i < len(m.items) {
@@ -114,25 +116,23 @@ func (m *menuScreen) move(delta int) {
 	}
 }
 
-// menuWidth is the inner label column width; hotkeys render right of it.
+// menuWidth is the label column width inside the panel.
 const menuWidth = 16
 
 func (m *menuScreen) view(width, height int) string {
 	var b strings.Builder
-	b.WriteString(styleTitle.Render(m.id) + "\n\n")
+	b.WriteString(styleTitle.Render(m.title) + "\n\n")
 	for i, it := range m.items {
-		if it.build == nil {
-			b.WriteString("  " + styleDim.Render(strings.Repeat("─", menuWidth+6)) + "\n")
-			continue
-		}
 		label := pad(it.label, menuWidth)
-		if i == m.cursor {
-			b.WriteString("▸ " + styleSelected.Render(label) + " " + styleDim.Render(it.hotkey) + "\n")
-		} else {
-			b.WriteString("  " + label + " " + styleDim.Render(it.hotkey) + "\n")
+		switch {
+		case i == m.cursor:
+			b.WriteString("▸ " + styleSelected.Render(label) + "\n")
+		case it.disabled:
+			b.WriteString("  " + styleDim.Render(label) + "\n")
+		default:
+			b.WriteString("  " + label + "\n")
 		}
 	}
-	b.WriteString("\n" + styleDim.Render("↑/↓ select · enter · esc"))
 	panel := styleMenuPanel.Render(b.String())
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, panel)
 }

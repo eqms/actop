@@ -10,11 +10,21 @@ import (
 	"github.com/eqms/actop/model"
 )
 
+var fixedLabels = []string{"Details", "Logs", "Shell", "Open URL", "Start", "Stop", "Kill", "Delete", "Cancel"}
+
 func menuLabels(m *menuScreen) []string {
 	var out []string
 	for _, it := range m.items {
-		if it.build != nil {
-			out = append(out, it.label)
+		out = append(out, it.label)
+	}
+	return out
+}
+
+func disabledLabels(m *menuScreen) map[string]bool {
+	out := map[string]bool{}
+	for _, it := range m.items {
+		if it.disabled {
+			out[it.label] = true
 		}
 	}
 	return out
@@ -32,96 +42,95 @@ func equalStrings(a, b []string) bool {
 	return true
 }
 
-func TestMenuItemsRunning(t *testing.T) {
-	app, _ := testApp()
-	c := &model.Container{ID: "db", State: "running"}
-	m := newMenuScreen(app, c)
-	want := []string{"Details", "Logs", "Shell", "Stop", "Kill", "Delete"}
-	if got := menuLabels(m); !equalStrings(got, want) {
-		t.Errorf("running menu = %v, want %v", got, want)
-	}
-	if m.cursor != 0 {
-		t.Errorf("cursor = %d, want 0 (Details)", m.cursor)
-	}
-	if m.id != "db" {
-		t.Errorf("id = %q, want db", m.id)
-	}
+func runningContainer(ports ...cli.PublishedPort) *model.Container {
+	return &model.Container{ID: "db", State: "running", Ports: ports}
 }
 
-func TestMenuItemsStopped(t *testing.T) {
-	app, _ := testApp()
-	c := &model.Container{ID: "db", State: "stopped"}
-	m := newMenuScreen(app, c)
-	want := []string{"Details", "Logs", "Start", "Delete"}
-	if got := menuLabels(m); !equalStrings(got, want) {
-		t.Errorf("stopped menu = %v, want %v", got, want)
-	}
+func stoppedContainer() *model.Container {
+	return &model.Container{ID: "db", State: "stopped"}
 }
 
-func TestMenuOpenURLOnlyWithPort(t *testing.T) {
+func TestContainerMenuFixedList(t *testing.T) {
 	app, _ := testApp()
-	withPort := &model.Container{ID: "web", State: "running",
-		Ports: []cli.PublishedPort{{Proto: "tcp", HostPort: 8080}}}
-	m := newMenuScreen(app, withPort)
-	want := []string{"Details", "Logs", "Shell", "Open URL", "Stop", "Kill", "Delete"}
-	if got := menuLabels(m); !equalStrings(got, want) {
-		t.Errorf("menu with port = %v, want %v", got, want)
-	}
-
-	noPort := &model.Container{ID: "db", State: "running"}
-	for _, it := range newMenuScreen(app, noPort).items {
-		if it.label == "Open URL" {
-			t.Error("Open URL must not appear without a WebURL")
+	for name, c := range map[string]*model.Container{
+		"running": runningContainer(),
+		"stopped": stoppedContainer(),
+	} {
+		m := newContainerMenu(app, c)
+		if got := menuLabels(m); !equalStrings(got, fixedLabels) {
+			t.Errorf("%s menu = %v, want fixed %v", name, got, fixedLabels)
 		}
 	}
 }
 
-func TestMenuHasSeparatorBeforeDestructive(t *testing.T) {
+func TestContainerMenuEnabledRunning(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
-	sep := -1
-	for i, it := range m.items {
-		if it.build == nil {
-			sep = i
-		}
+	withPort := newContainerMenu(app, runningContainer(cli.PublishedPort{Proto: "tcp", HostPort: 8080}))
+	if d := disabledLabels(withPort); len(d) != 1 || !d["Start"] {
+		t.Errorf("running+port disabled = %v, want only Start", d)
 	}
-	if sep == -1 {
-		t.Fatal("running menu must contain a separator")
-	}
-	if m.items[sep+1].label != "Stop" {
-		t.Errorf("item after separator = %q, want Stop", m.items[sep+1].label)
+	noPort := newContainerMenu(app, runningContainer())
+	if d := disabledLabels(noPort); len(d) != 2 || !d["Start"] || !d["Open URL"] {
+		t.Errorf("running w/o port disabled = %v, want Start + Open URL", d)
 	}
 }
 
-func TestMenuNavigationSkipsSeparatorAndClamps(t *testing.T) {
+func TestContainerMenuEnabledStopped(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
-	// items: 0 Details, 1 Logs, 2 Shell, 3 separator, 4 Stop, 5 Kill, 6 Delete
+	m := newContainerMenu(app, stoppedContainer())
+	want := map[string]bool{"Shell": true, "Open URL": true, "Stop": true, "Kill": true}
+	got := disabledLabels(m)
+	if len(got) != len(want) {
+		t.Fatalf("stopped disabled = %v, want %v", got, want)
+	}
+	for k := range want {
+		if !got[k] {
+			t.Errorf("%s must be disabled when stopped", k)
+		}
+	}
+}
+
+func TestMenuCursorStartsOnFirstEnabled(t *testing.T) {
+	app, _ := testApp()
+	m := newContainerMenu(app, stoppedContainer())
+	if m.items[m.cursor].label != "Details" {
+		t.Errorf("cursor starts on %q, want Details", m.items[m.cursor].label)
+	}
+}
+
+func TestMenuMoveSkipsDisabledAndClamps(t *testing.T) {
+	app, _ := testApp()
+	// stopped: indices 0 Details, 1 Logs, 2 Shell(d), 3 Open URL(d),
+	// 4 Start, 5 Stop(d), 6 Kill(d), 7 Delete, 8 Cancel
+	m := newContainerMenu(app, stoppedContainer())
 	m.update(key('k')) // clamp at top
-	if m.cursor != 0 {
-		t.Errorf("cursor after k at top = %d, want 0", m.cursor)
+	if m.items[m.cursor].label != "Details" {
+		t.Errorf("after k at top: %q, want Details", m.items[m.cursor].label)
 	}
 	m.update(key('j'))
-	m.update(key('j'))
-	m.update(key('j')) // must skip separator, land on Stop
-	if m.items[m.cursor].label != "Stop" {
-		t.Errorf("cursor on %q, want Stop (separator skipped)", m.items[m.cursor].label)
+	m.update(key('j')) // skips Shell + Open URL
+	if m.items[m.cursor].label != "Start" {
+		t.Errorf("cursor = %q, want Start (disabled skipped)", m.items[m.cursor].label)
 	}
-	for i := 0; i < 10; i++ {
+	m.update(key('j')) // skips Stop + Kill
+	if m.items[m.cursor].label != "Delete" {
+		t.Errorf("cursor = %q, want Delete", m.items[m.cursor].label)
+	}
+	for i := 0; i < 5; i++ {
 		m.update(key('j'))
 	}
-	if m.items[m.cursor].label != "Delete" {
-		t.Errorf("cursor on %q, want Delete (clamped at end)", m.items[m.cursor].label)
+	if m.items[m.cursor].label != "Cancel" {
+		t.Errorf("cursor = %q, want Cancel (clamped at end)", m.items[m.cursor].label)
 	}
-	m.update(key('k')) // back up over items, later over the separator
-	if m.items[m.cursor].label != "Kill" {
-		t.Errorf("cursor on %q, want Kill", m.items[m.cursor].label)
+	m.update(key('k'))
+	if m.items[m.cursor].label != "Delete" {
+		t.Errorf("cursor = %q, want Delete", m.items[m.cursor].label)
 	}
 }
 
 func TestMenuEnterOnDetails(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
+	m := newContainerMenu(app, runningContainer())
 	next, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
 	if _, ok := next.(*detailScreen); !ok {
 		t.Errorf("enter on Details = %T, want *detailScreen", next)
@@ -130,96 +139,75 @@ func TestMenuEnterOnDetails(t *testing.T) {
 
 func TestMenuEnterOnStopReturnsConfirm(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
-	m.update(key('j'))
-	m.update(key('j'))
-	m.update(key('j')) // Stop
+	m := newContainerMenu(app, runningContainer())
+	for m.items[m.cursor].label != "Stop" {
+		m.update(key('j'))
+	}
 	next, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
 	if _, ok := next.(*confirmScreen); !ok {
 		t.Errorf("enter on Stop = %T, want *confirmScreen", next)
 	}
 }
 
-func TestMenuHotkeySelectsItem(t *testing.T) {
+func TestMenuCancelCloses(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
-	next, _ := m.update(key('D'))
-	if _, ok := next.(*confirmScreen); !ok {
-		t.Errorf("hotkey D = %T, want *confirmScreen", next)
+	m := newContainerMenu(app, runningContainer())
+	for m.items[m.cursor].label != "Cancel" {
+		m.update(key('j'))
+	}
+	next, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if next != nil || cmd != nil {
+		t.Errorf("Cancel = (%T, %v), want (nil, nil)", next, cmd)
 	}
 }
 
 func TestMenuEscCloses(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
+	m := newContainerMenu(app, runningContainer())
 	next, cmd := m.update(tea.KeyMsg{Type: tea.KeyEsc})
 	if next != nil || cmd != nil {
 		t.Errorf("esc = (%T, %v), want (nil, nil)", next, cmd)
 	}
 }
 
-func TestMenuViewRendersItemsAndTitle(t *testing.T) {
+func TestMenuNoHotkeyDispatch(t *testing.T) {
 	app, _ := testApp()
-	m := newMenuScreen(app, &model.Container{ID: "db", State: "running"})
+	m := newContainerMenu(app, runningContainer())
+	next, cmd := m.update(key('X'))
+	if next != screen(m) || cmd != nil {
+		t.Errorf("X inside menu = (%T, %v), want menu unchanged (no hotkey dispatch)", next, cmd)
+	}
+	if _, ok := next.(*confirmScreen); ok {
+		t.Error("X inside menu must not open a confirm")
+	}
+}
+
+func TestMenuViewPlainList(t *testing.T) {
+	app, _ := testApp()
+	m := newContainerMenu(app, runningContainer())
 	out := m.view(80, 24)
-	for _, want := range []string{"db", "Details", "Logs", "Shell", "Stop", "Kill", "Delete"} {
+	for _, want := range fixedLabels {
 		if !strings.Contains(out, want) {
 			t.Errorf("view missing %q", want)
 		}
 	}
-
-	// The cursor marker must appear on exactly one line, and that line
-	// must be the initially selected "Details" row.
-	lines := strings.Split(out, "\n")
-	markerLines := 0
-	for _, line := range lines {
+	if !strings.Contains(out, "db") {
+		t.Error("view missing title")
+	}
+	marker := 0
+	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "▸") {
-			markerLines++
+			marker++
 			if !strings.Contains(line, "Details") {
-				t.Errorf("cursor marker line = %q, want it to contain %q", line, "Details")
+				t.Errorf("marker on %q, want the Details line", line)
 			}
 		}
 	}
-	if markerLines != 1 {
-		t.Errorf("cursor marker lines = %d, want exactly 1", markerLines)
+	if marker != 1 {
+		t.Errorf("marker count = %d, want 1", marker)
 	}
-
-	if !strings.Contains(out, "↑/↓ select · enter · esc") {
-		t.Error("view missing footer hint")
-	}
-
-	if !strings.Contains(out, strings.Repeat("─", 10)) {
-		t.Error("view missing separator rule")
-	}
-
-	if !strings.Contains(out, "╭") {
-		t.Error("view missing rounded panel border")
-	}
-
-	if !strings.Contains(out, "enter") {
-		t.Error("view missing enter hotkey text")
-	}
-
-	stopFound, deleteFound := false, false
-	for _, line := range lines {
-		if strings.Contains(line, "Stop") {
-			stopFound = true
-			if !strings.Contains(line, "X") {
-				t.Errorf("Stop line = %q, want it to contain hotkey %q", line, "X")
-			}
-		}
-		if strings.Contains(line, "Delete") {
-			deleteFound = true
-			if !strings.Contains(line, "D") {
-				t.Errorf("Delete line = %q, want it to contain hotkey %q", line, "D")
-			}
-		}
-	}
-	if !stopFound {
-		t.Error("view missing Stop line")
-	}
-	if !deleteFound {
-		t.Error("view missing Delete line")
+	if strings.Contains(out, "select · enter · esc") {
+		t.Error("footer hint must be removed")
 	}
 }
 
@@ -234,8 +222,8 @@ func TestEnterOnGridOpensMenu(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected menu screen on top, got %T", app.top())
 	}
-	if m.id != "db" {
-		t.Errorf("menu id = %q, want db", m.id)
+	if m.title != "db" {
+		t.Errorf("menu title = %q, want db", m.title)
 	}
 }
 
@@ -245,8 +233,12 @@ func TestMenuStopFlowCallsClient(t *testing.T) {
 		ID:     "db",
 		Status: &cli.Status{State: "running"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // open menu
-	app.Update(key('X'))                       // menu hotkey -> confirm
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m := app.top().(*menuScreen)
+	for m.items[m.cursor].label != "Stop" {
+		app.Update(key('j'))
+	}
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if _, ok := app.top().(*confirmScreen); !ok {
 		t.Fatalf("expected confirm screen, got %T", app.top())
 	}
