@@ -31,6 +31,14 @@ bewusst CLI-basiert.
 
 ### Installation
 
+Via Homebrew (empfohlen):
+
+```bash
+brew install eqms/tap/actop
+```
+
+Aus dem Quellcode:
+
 ```bash
 git clone https://github.com/eqms/actop && cd actop
 make build
@@ -114,6 +122,14 @@ socket, no events and no pause/health — actop is deliberately CLI-based.
 - Running API server: `container system start`
 
 ### Installation
+
+Via Homebrew (recommended):
+
+```bash
+brew install eqms/tap/actop
+```
+
+From source:
 
 ```bash
 git clone https://github.com/eqms/actop && cd actop
