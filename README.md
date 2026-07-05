@@ -50,7 +50,7 @@ make build
 | Taste | Aktion |
 |---|---|
 | `tab` / `1`–`4` | Tabs: Containers / Volumes / Images / System |
-| `enter` | Aktionsmenü (ctop-Stil): Details, Logs, Shell, Open URL, Start/Stop/Kill/Delete |
+| `enter` | Aktionsmenü (ctop-Stil, feste Liste) — auch in Volumes/Images |
 | `l` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
 | `o` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
@@ -88,6 +88,11 @@ columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
   Steuerzeichen befreit (kein Clipboard-Hijack/Titel-Spoofing durch bösartige
   Container-Ausgaben); Namen gehen mit POSIX-`--`-Terminator an die CLI.
 
+### Neu in v0.5
+
+- **ctop-treues Aktionsmenü**: feste Einträge (Details, Logs, Shell, Open URL, Start, Stop, Kill, Delete, Cancel) — nicht anwendbare ausgegraut statt ausgeblendet, schlichte Liste ohne Hotkey-Spalte, expliziter Cancel-Eintrag
+- **Menüs in allen Tabs**: `enter` öffnet auch bei Volumes und Images ein Aktionsmenü (Delete mit Rückfrage, Cancel)
+
 ### Neu in v0.4
 
 - **Container-Aktionsmenü** (`enter`, ctop-Stil): zentriertes Panel mit zustandsabhängigen Aktionen — Navigation `j/k/↑/↓`, Auswahl per `enter` oder Hotkey, `esc` schließt; destruktive Aktionen weiterhin mit Rückfrage
@@ -95,7 +100,7 @@ columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
 
 Ältere Versionen: siehe [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-### Roadmap (v0.5)
+### Roadmap (v0.6)
 
 - Spalten-Persistenz direkt aus der TUI
 - Log-Suche im Logs-Viewer
@@ -142,7 +147,7 @@ make build
 | Key | Action |
 |---|---|
 | `tab` / `1`–`4` | Tabs: containers / volumes / images / system |
-| `enter` | Action menu (ctop-style): details, logs, shell, open URL, start/stop/kill/delete |
+| `enter` | Action menu (ctop-style, fixed list) — also on volumes/images |
 | `l` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
 | `o` | Open published port (localhost:…) or container IP in the browser |
@@ -181,6 +186,11 @@ columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
   malicious container output); names are passed to the CLI behind the POSIX
   `--` terminator.
 
+### New in v0.5
+
+- **ctop-faithful action menu**: fixed entries (Details, Logs, Shell, Open URL, Start, Stop, Kill, Delete, Cancel) — inapplicable ones dimmed instead of hidden, plain list without hotkey column, explicit Cancel entry
+- **Menus on all tabs**: `enter` also opens an action menu on volumes and images (delete with confirmation, Cancel)
+
 ### New in v0.4
 
 - **Container action menu** (`enter`, ctop-style): centered panel with state-filtered actions — navigate with `j/k/↑/↓`, select via `enter` or hotkey, `esc` closes; destructive actions still require confirmation
@@ -188,7 +198,7 @@ columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
 
 Older versions: see [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-### Roadmap (v0.5)
+### Roadmap (v0.6)
 
 - Column persistence directly from the TUI
 - Log search in the logs viewer

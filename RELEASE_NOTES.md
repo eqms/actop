@@ -6,6 +6,16 @@
 
 ## Deutsche Release Notes
 
+### v0.5.0 (2026-07-05)
+
+#### Geändert
+- **Aktionsmenü im ctop-Stil überarbeitet**: feste Eintragsliste in konstanter Reihenfolge (Details, Logs, Shell, Open URL, Start, Stop, Kill, Delete, Cancel); nicht anwendbare Einträge werden ausgegraut und vom Cursor übersprungen statt ausgeblendet — kein Springen der Liste mehr. Schlichte Optik ohne Hotkey-Spalte, Separator und Fußzeile; expliziter Cancel-Eintrag. Direkte Hotkeys im Grid bleiben unverändert.
+
+#### Neue Features
+- **Aktionsmenü in allen Tabs**: `enter` öffnet jetzt auch bei Volumes und Images ein Menü (Delete mit Rückfrage — bei Volumes inkl. Datenverlust-Warnung — und Cancel)
+
+---
+
 ### v0.4.0 (2026-07-04)
 
 #### Neue Features
@@ -74,6 +84,16 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.5.0 (2026-07-05)
+
+#### Changed
+- **Action menu reworked in ctop style**: fixed entry list in constant order (Details, Logs, Shell, Open URL, Start, Stop, Kill, Delete, Cancel); inapplicable entries are dimmed and skipped by the cursor instead of hidden — the list no longer shifts. Plain look without hotkey column, separator and footer; explicit Cancel entry. Direct grid hotkeys remain unchanged.
+
+#### Added
+- **Action menu on all tabs**: `enter` now also opens a menu on volumes and images (delete with confirmation — including the data-loss warning for volumes — and Cancel)
+
+---
 
 ### v0.4.0 (2026-07-04)
 
