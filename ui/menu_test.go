@@ -276,3 +276,101 @@ func TestMenuEscReturnsToGrid(t *testing.T) {
 		t.Errorf("no client calls expected, got %+v", mock.Calls)
 	}
 }
+
+func TestVolumeMenuDeleteFlow(t *testing.T) {
+	app, mock := testApp()
+	app.Update(key('2'))
+	app.Update(volumesResultMsg{volumes: []cli.Volume{{
+		ID:            "vol1",
+		Configuration: cli.VolumeConfig{Name: "vol1"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, ok := app.top().(*menuScreen)
+	if !ok {
+		t.Fatalf("expected menu on volumes tab, got %T", app.top())
+	}
+	if m.title != "vol1" {
+		t.Errorf("menu title = %q, want vol1", m.title)
+	}
+	if got := menuLabels(m); !equalStrings(got, []string{"Delete", "Cancel"}) {
+		t.Fatalf("volume menu = %v, want [Delete Cancel]", got)
+	}
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Delete -> confirm
+	c, ok := app.top().(*confirmScreen)
+	if !ok {
+		t.Fatalf("expected confirm screen, got %T", app.top())
+	}
+	if !strings.Contains(c.question, "data is lost") {
+		t.Errorf("confirm question %q must keep the data-loss warning", c.question)
+	}
+	_, cmd := app.Update(key('y'))
+	if cmd == nil {
+		t.Fatal("expected delete command")
+	}
+	cmd()
+	found := false
+	for _, call := range mock.Calls {
+		if call.Method == "VolumeDelete" && call.ID == "vol1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("VolumeDelete not called via menu: %+v", mock.Calls)
+	}
+	if _, ok := app.top().(*volumesScreen); !ok {
+		t.Errorf("stack not back on volumes tab, top is %T", app.top())
+	}
+}
+
+func TestVolumeMenuCancel(t *testing.T) {
+	app, mock := testApp()
+	app.Update(key('2'))
+	app.Update(volumesResultMsg{volumes: []cli.Volume{{
+		ID:            "vol1",
+		Configuration: cli.VolumeConfig{Name: "vol1"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(key('j')) // cursor to Cancel
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if _, ok := app.top().(*volumesScreen); !ok {
+		t.Fatalf("expected volumes tab after Cancel, got %T", app.top())
+	}
+	if len(mock.Calls) != 0 {
+		t.Errorf("no client calls expected, got %+v", mock.Calls)
+	}
+}
+
+func TestImageMenuDeleteFlow(t *testing.T) {
+	app, mock := testApp()
+	app.Update(key('3'))
+	app.Update(imagesResultMsg{images: []cli.Image{{
+		ID:            "img1",
+		Configuration: cli.ImageConfig{Name: "docker.io/library/postgres:17"},
+	}}})
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m, ok := app.top().(*menuScreen)
+	if !ok {
+		t.Fatalf("expected menu on images tab, got %T", app.top())
+	}
+	if m.title != "docker.io/library/postgres:17" {
+		t.Errorf("menu title = %q, want image ref", m.title)
+	}
+	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Delete -> confirm
+	if _, ok := app.top().(*confirmScreen); !ok {
+		t.Fatalf("expected confirm screen, got %T", app.top())
+	}
+	_, cmd := app.Update(key('y'))
+	if cmd == nil {
+		t.Fatal("expected delete command")
+	}
+	cmd()
+	found := false
+	for _, call := range mock.Calls {
+		if call.Method == "ImageDelete" && call.ID == "docker.io/library/postgres:17" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("ImageDelete not called via menu: %+v", mock.Calls)
+	}
+}

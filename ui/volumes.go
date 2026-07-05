@@ -58,14 +58,22 @@ func (v *volumesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 	case "h", "?":
 		return v, v.app.push(newHelpScreen())
+	case "enter":
+		if vol := v.selected(); vol != nil {
+			return v, v.app.push(newVolumeMenu(v.app, vol.Configuration.Name))
+		}
 	case "D":
 		if vol := v.selected(); vol != nil {
-			name := vol.Configuration.Name
-			q := fmt.Sprintf("delete volume %q? (data is lost)", name)
-			return v, v.app.push(newConfirmScreen(q, volumeDeleteCmd(v.app.client, name)))
+			return v, v.app.push(volumeDeleteConfirm(v.app, vol.Configuration.Name))
 		}
 	}
 	return v, nil
+}
+
+// volumeDeleteConfirm is shared by the D hotkey and the enter menu.
+func volumeDeleteConfirm(app *App, name string) *confirmScreen {
+	q := fmt.Sprintf("delete volume %q? (data is lost)", name)
+	return newConfirmScreen(q, volumeDeleteCmd(app.client, name))
 }
 
 func (v *volumesScreen) view(width, height int) string {

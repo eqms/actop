@@ -83,6 +83,27 @@ func confirmItem(action, id string) func(*menuScreen) (screen, tea.Cmd) {
 	}
 }
 
+// newVolumeMenu and newImageMenu give the other tabs the same enter-menu.
+func newVolumeMenu(app *App, name string) *menuScreen {
+	items := []menuItem{
+		{label: "Delete", build: func(m *menuScreen) (screen, tea.Cmd) {
+			return volumeDeleteConfirm(m.app, name), nil
+		}},
+		cancelItem(),
+	}
+	return newMenuScreen(app, name, items)
+}
+
+func newImageMenu(app *App, ref string) *menuScreen {
+	items := []menuItem{
+		{label: "Delete", build: func(m *menuScreen) (screen, tea.Cmd) {
+			return imageDeleteConfirm(m.app, ref), nil
+		}},
+		cancelItem(),
+	}
+	return newMenuScreen(app, ref, items)
+}
+
 func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {

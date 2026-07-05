@@ -58,14 +58,22 @@ func (s *imagesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 	case "h", "?":
 		return s, s.app.push(newHelpScreen())
+	case "enter":
+		if img := s.selected(); img != nil {
+			return s, s.app.push(newImageMenu(s.app, img.Configuration.Name))
+		}
 	case "D":
 		if img := s.selected(); img != nil {
-			ref := img.Configuration.Name
-			q := fmt.Sprintf("delete image %q?", ref)
-			return s, s.app.push(newConfirmScreen(q, imageDeleteCmd(s.app.client, ref)))
+			return s, s.app.push(imageDeleteConfirm(s.app, img.Configuration.Name))
 		}
 	}
 	return s, nil
+}
+
+// imageDeleteConfirm is shared by the D hotkey and the enter menu.
+func imageDeleteConfirm(app *App, ref string) *confirmScreen {
+	q := fmt.Sprintf("delete image %q?", ref)
+	return newConfirmScreen(q, imageDeleteCmd(app.client, ref))
 }
 
 func (s *imagesScreen) view(width, height int) string {
