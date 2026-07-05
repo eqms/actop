@@ -187,9 +187,14 @@ Append at the end of `.github/workflows/ci.yml` (same indentation level as the `
           sed -i "s|^  sha256 \".*\"|  sha256 \"${SHA}\"|" Formula/actop.rb
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/actop.rb
-          git commit -m "[CHG] actop ${TAG}: update formula"
-          git push
+          # idempotent: a re-run for an already-updated tag is a no-op, not a failure
+          if git diff --quiet -- Formula/actop.rb; then
+            echo "Formula already up to date for ${TAG} — nothing to commit"
+          else
+            git add Formula/actop.rb
+            git commit -m "[CHG] actop ${TAG}: update formula"
+            git push
+          fi
 ```
 
 Note: `needs: release` orders the job after the GitHub release exists, but a
