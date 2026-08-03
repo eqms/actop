@@ -6,6 +6,31 @@
 
 ## Deutsche Release Notes
 
+### v0.6.1 (2026-08-03)
+
+Reines Wartungs-Release: Am Programm selbst hat sich nichts geändert, das
+Binary ist funktional identisch zu v0.6.0. Betroffen ist ausschließlich der
+Release-Automatismus.
+
+#### Behoben
+- **Homebrew-Formula-Job repariert**: Der Job klont den Tap jetzt anonym — das
+  Repository ist öffentlich und benötigt dafür keine Anmeldung — und
+  authentifiziert nur den Push. Der in v0.6.0 eingeführte
+  `http.extraheader` machte aus einem problemlosen anonymen Lesezugriff eine
+  401-Antwort, woraufhin Git nach einem Benutzernamen fragte, den es in der CI
+  nicht gibt. Das Token bleibt weiterhin aus `.git/config` heraus, was der
+  ursprüngliche Zweck der Änderung war.
+- **Aussagekräftige Meldung bei defektem Tap-Token**: Ein Secret, das nur aus
+  Leerraum besteht, kam an der bisherigen Leerprüfung vorbei und scheiterte
+  erst tief in Git mit einer irreführenden Meldung. Ein versehentlicher
+  Zeilenumbruch wird jetzt toleriert, ein tatsächlich leeres Secret klar
+  benannt. Genau daran war bereits das v0.5.0-Release gescheitert.
+
+Die Formula für v0.6.0 wurde von Hand nachgezogen; ab diesem Release
+übernimmt das wieder die Pipeline.
+
+---
+
 ### v0.6.0 (2026-08-03)
 
 #### Sicherheit
@@ -109,6 +134,30 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.6.1 (2026-08-03)
+
+Maintenance release only: nothing about the program itself changed, and the
+binary is functionally identical to v0.6.0. This concerns the release
+automation exclusively.
+
+#### Fixed
+- **Homebrew formula job repaired**: the job now clones the tap anonymously —
+  the repository is public and needs no credentials for that — and
+  authenticates only the push. The `http.extraheader` introduced in v0.6.0
+  turned what would have been a fine anonymous read into a 401, after which
+  git asked for a username that does not exist in CI. The token still stays
+  out of `.git/config`, which was the point of the original change.
+- **Meaningful message for a broken tap token**: a secret consisting only of
+  whitespace slipped past the previous emptiness check and failed deep inside
+  git with a misleading message. A stray newline is now tolerated and a truly
+  empty secret is named as such. This is what had already broken the v0.5.0
+  release.
+
+The v0.6.0 formula was updated by hand; from this release on the pipeline
+handles it again.
+
+---
 
 ### v0.6.0 (2026-08-03)
 
