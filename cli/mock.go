@@ -3,10 +3,15 @@ package cli
 import (
 	"context"
 	"os/exec"
+	"sync"
 )
 
 // MockClient implements Client for tests. Set the Fn fields you need;
 // unset functions return zero values. Every call is recorded in Calls.
+//
+// The real client is driven from concurrent Bubble Tea commands -- a list and
+// a stats poll run at the same time -- so the recorder is mutex-guarded and
+// Calls must be read through CallList rather than directly.
 type MockClient struct {
 	ListFn         func(ctx context.Context, all bool) ([]ListItem, error)
 	StatsFn        func(ctx context.Context) ([]StatsEntry, error)
@@ -16,7 +21,8 @@ type MockClient struct {
 	ImagesFn       func(ctx context.Context) ([]Image, error)
 	ActionFn       func(ctx context.Context, action, id string) error
 
-	Calls []MockCall
+	mu    sync.Mutex
+	calls []MockCall
 }
 
 type MockCall struct {
@@ -25,7 +31,19 @@ type MockCall struct {
 }
 
 func (m *MockClient) record(method, id string) {
-	m.Calls = append(m.Calls, MockCall{Method: method, ID: id})
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, MockCall{Method: method, ID: id})
+}
+
+// CallList returns a copy of the recorded calls, safe to range over while
+// commands are still in flight.
+func (m *MockClient) CallList() []MockCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]MockCall, len(m.calls))
+	copy(out, m.calls)
+	return out
 }
 
 func (m *MockClient) List(ctx context.Context, all bool) ([]ListItem, error) {

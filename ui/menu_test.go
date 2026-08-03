@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/model"
@@ -131,7 +131,7 @@ func TestMenuMoveSkipsDisabledAndClamps(t *testing.T) {
 func TestMenuEnterOnDetails(t *testing.T) {
 	app, _ := testApp()
 	m := newContainerMenu(app, runningContainer())
-	next, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, _ := m.update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if _, ok := next.(*detailScreen); !ok {
 		t.Errorf("enter on Details = %T, want *detailScreen", next)
 	}
@@ -143,7 +143,7 @@ func TestMenuEnterOnStopReturnsConfirm(t *testing.T) {
 	for m.items[m.cursor].label != "Stop" {
 		m.update(key('j'))
 	}
-	next, _ := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, _ := m.update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if _, ok := next.(*confirmScreen); !ok {
 		t.Errorf("enter on Stop = %T, want *confirmScreen", next)
 	}
@@ -155,7 +155,7 @@ func TestMenuCancelCloses(t *testing.T) {
 	for m.items[m.cursor].label != "Cancel" {
 		m.update(key('j'))
 	}
-	next, cmd := m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, cmd := m.update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if next != nil || cmd != nil {
 		t.Errorf("Cancel = (%T, %v), want (nil, nil)", next, cmd)
 	}
@@ -164,7 +164,7 @@ func TestMenuCancelCloses(t *testing.T) {
 func TestMenuEscCloses(t *testing.T) {
 	app, _ := testApp()
 	m := newContainerMenu(app, runningContainer())
-	next, cmd := m.update(tea.KeyMsg{Type: tea.KeyEsc})
+	next, cmd := m.update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if next != nil || cmd != nil {
 		t.Errorf("esc = (%T, %v), want (nil, nil)", next, cmd)
 	}
@@ -217,7 +217,7 @@ func TestEnterOnGridOpensMenu(t *testing.T) {
 		ID:     "db",
 		Status: &cli.Status{State: "running"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, ok := app.top().(*menuScreen)
 	if !ok {
 		t.Fatalf("expected menu screen on top, got %T", app.top())
@@ -233,12 +233,12 @@ func TestMenuStopFlowCallsClient(t *testing.T) {
 		ID:     "db",
 		Status: &cli.Status{State: "running"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m := app.top().(*menuScreen)
 	for m.items[m.cursor].label != "Stop" {
 		app.Update(key('j'))
 	}
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if _, ok := app.top().(*confirmScreen); !ok {
 		t.Fatalf("expected confirm screen, got %T", app.top())
 	}
@@ -248,13 +248,13 @@ func TestMenuStopFlowCallsClient(t *testing.T) {
 	}
 	cmd()
 	found := false
-	for _, c := range mock.Calls {
+	for _, c := range mock.CallList() {
 		if c.Method == "Stop" && c.ID == "db" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("Stop not called via menu flow: %+v", mock.Calls)
+		t.Errorf("Stop not called via menu flow: %+v", mock.CallList())
 	}
 	if _, ok := app.top().(*gridScreen); !ok {
 		t.Errorf("stack not back on grid, top is %T", app.top())
@@ -267,13 +267,13 @@ func TestMenuEscReturnsToGrid(t *testing.T) {
 		ID:     "db",
 		Status: &cli.Status{State: "running"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if _, ok := app.top().(*gridScreen); !ok {
 		t.Fatalf("expected grid after esc, got %T", app.top())
 	}
-	if len(mock.Calls) != 0 {
-		t.Errorf("no client calls expected, got %+v", mock.Calls)
+	if len(mock.CallList()) != 0 {
+		t.Errorf("no client calls expected, got %+v", mock.CallList())
 	}
 }
 
@@ -284,7 +284,7 @@ func TestVolumeMenuDeleteFlow(t *testing.T) {
 		ID:            "vol1",
 		Configuration: cli.VolumeConfig{Name: "vol1"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, ok := app.top().(*menuScreen)
 	if !ok {
 		t.Fatalf("expected menu on volumes tab, got %T", app.top())
@@ -295,7 +295,7 @@ func TestVolumeMenuDeleteFlow(t *testing.T) {
 	if got := menuLabels(m); !equalStrings(got, []string{"Delete", "Cancel"}) {
 		t.Fatalf("volume menu = %v, want [Delete Cancel]", got)
 	}
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Delete -> confirm
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter}) // Delete -> confirm
 	c, ok := app.top().(*confirmScreen)
 	if !ok {
 		t.Fatalf("expected confirm screen, got %T", app.top())
@@ -309,13 +309,13 @@ func TestVolumeMenuDeleteFlow(t *testing.T) {
 	}
 	cmd()
 	found := false
-	for _, call := range mock.Calls {
+	for _, call := range mock.CallList() {
 		if call.Method == "VolumeDelete" && call.ID == "vol1" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("VolumeDelete not called via menu: %+v", mock.Calls)
+		t.Errorf("VolumeDelete not called via menu: %+v", mock.CallList())
 	}
 	if _, ok := app.top().(*volumesScreen); !ok {
 		t.Errorf("stack not back on volumes tab, top is %T", app.top())
@@ -329,14 +329,14 @@ func TestVolumeMenuCancel(t *testing.T) {
 		ID:            "vol1",
 		Configuration: cli.VolumeConfig{Name: "vol1"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	app.Update(key('j')) // cursor to Cancel
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if _, ok := app.top().(*volumesScreen); !ok {
 		t.Fatalf("expected volumes tab after Cancel, got %T", app.top())
 	}
-	if len(mock.Calls) != 0 {
-		t.Errorf("no client calls expected, got %+v", mock.Calls)
+	if len(mock.CallList()) != 0 {
+		t.Errorf("no client calls expected, got %+v", mock.CallList())
 	}
 }
 
@@ -347,7 +347,7 @@ func TestImageMenuDeleteFlow(t *testing.T) {
 		ID:            "img1",
 		Configuration: cli.ImageConfig{Name: "docker.io/library/postgres:17"},
 	}}})
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, ok := app.top().(*menuScreen)
 	if !ok {
 		t.Fatalf("expected menu on images tab, got %T", app.top())
@@ -355,7 +355,7 @@ func TestImageMenuDeleteFlow(t *testing.T) {
 	if m.title != "docker.io/library/postgres:17" {
 		t.Errorf("menu title = %q, want image ref", m.title)
 	}
-	app.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Delete -> confirm
+	app.Update(tea.KeyPressMsg{Code: tea.KeyEnter}) // Delete -> confirm
 	if _, ok := app.top().(*confirmScreen); !ok {
 		t.Fatalf("expected confirm screen, got %T", app.top())
 	}
@@ -365,12 +365,12 @@ func TestImageMenuDeleteFlow(t *testing.T) {
 	}
 	cmd()
 	found := false
-	for _, call := range mock.Calls {
+	for _, call := range mock.CallList() {
 		if call.Method == "ImageDelete" && call.ID == "docker.io/library/postgres:17" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("ImageDelete not called via menu: %+v", mock.Calls)
+		t.Errorf("ImageDelete not called via menu: %+v", mock.CallList())
 	}
 }

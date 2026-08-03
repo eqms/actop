@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/eqms/actop/model"
 )
@@ -105,7 +105,7 @@ func newImageMenu(app *App, ref string) *menuScreen {
 }
 
 func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
 	}
@@ -142,7 +142,7 @@ const menuWidth = 16
 
 func (m *menuScreen) view(width, height int) string {
 	var b strings.Builder
-	b.WriteString(styleTitle.Render(m.title) + "\n\n")
+	b.WriteString(styleTitle.Render(safe(m.title)) + "\n\n")
 	for i, it := range m.items {
 		label := pad(it.label, menuWidth)
 		switch {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
@@ -33,7 +33,8 @@ func main() {
 	}
 
 	app := ui.NewApp(cli.New(), cfg, version)
-	p := tea.NewProgram(app, tea.WithAltScreen())
+	// alt-screen is requested by the model's View in Bubble Tea v2
+	p := tea.NewProgram(app)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "actop: %v\n", err)
 		os.Exit(1)

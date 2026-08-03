@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/model"
 )
@@ -42,7 +42,7 @@ func (g *gridScreen) selected() *model.Container {
 }
 
 func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return g, nil
 	}
@@ -224,8 +224,8 @@ func (g *gridScreen) view(width, height int) string {
 
 	nameWidth := 12
 	for _, c := range rows {
-		if len(c.ID) > nameWidth {
-			nameWidth = len(c.ID)
+		if w := displayWidth(c.ID); w > nameWidth {
+			nameWidth = w
 		}
 	}
 	cols := gridColumns(g.app.columns, nameWidth)
@@ -281,18 +281,26 @@ func stripStyles(cols []column, c *model.Container, now time.Time) []string {
 	return cells
 }
 
-// pad is rune-aware: sparkline glyphs and umlauts are multi-byte.
+// pad sanitizes s and fits it to w cells. It is the choke point for every
+// table cell, so CLI-supplied text cannot reach the terminal unfiltered.
+// Rune-aware: sparkline glyphs and umlauts are multi-byte.
 func pad(s string, w int) string {
-	r := []rune(s)
+	if w <= 0 {
+		return ""
+	}
+	r := []rune(safe(s))
 	if len(r) > w {
 		return string(r[:w-1]) + "…"
 	}
-	return s + strings.Repeat(" ", w-len(r))
+	return string(r) + strings.Repeat(" ", w-len(r))
 }
 
 // confirmAction wraps a container lifecycle action in a confirm dialog.
+// The prompt shows the sanitized ID -- a name padded with escape sequences
+// must not obscure which container is about to be destroyed -- while the
+// command still targets the real one.
 func confirmAction(app *App, action, id string) *confirmScreen {
-	q := fmt.Sprintf("%s container %q?", action, id)
+	q := fmt.Sprintf("%s container %q?", action, safe(id))
 	return newConfirmScreen(q, actionCmd(app.client, action, id))
 }
 

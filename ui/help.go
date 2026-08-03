@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type helpScreen struct{}
@@ -11,7 +11,7 @@ type helpScreen struct{}
 func newHelpScreen() *helpScreen { return &helpScreen{} }
 
 func (h *helpScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	if _, ok := msg.(tea.KeyMsg); ok {
+	if _, ok := msg.(tea.KeyPressMsg); ok {
 		return nil, nil
 	}
 	return h, nil

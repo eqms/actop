@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 )
 
 // maxLogLines bounds the in-memory log buffer (container logs has no --tail).
@@ -46,7 +46,7 @@ func (l *logsScreen) close() {
 
 func (l *logsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	switch m := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch m.String() {
 		case "q", "esc":
 			l.close()
@@ -54,7 +54,9 @@ func (l *logsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 	case logLineMsg:
 		atBottom := l.vp.AtBottom()
-		l.lines = append(l.lines, m.line)
+		// Container stdout is untrusted: strip escape sequences and control
+		// chars before the line reaches the terminal renderer.
+		l.lines = append(l.lines, safe(m.line))
 		if len(l.lines) > maxLogLines {
 			l.lines = l.lines[len(l.lines)-maxLogLines:]
 		}
@@ -63,6 +65,11 @@ func (l *logsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 			if atBottom {
 				l.vp.GotoBottom()
 			}
+		}
+		if l.session == nil {
+			// close() ran while this line was in flight; keep the text, but
+			// do not wait on a channel that no longer has a producer
+			return l, nil
 		}
 		return l, waitForLogCmd(l.session.ch)
 	case logStreamEndMsg:
@@ -78,16 +85,19 @@ func (l *logsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 
 func (l *logsScreen) view(width, height int) string {
 	if !l.ready {
-		l.vp = viewport.New(width, max(height-2, 1))
+		l.vp = viewport.New()
+		l.vp.SetWidth(width)
+		l.vp.SetHeight(max(height-2, 1))
 		l.vp.SetContent(strings.Join(l.lines, "\n"))
 		l.vp.GotoBottom()
 		l.ready = true
 	}
-	status := styleDim.Render("logs: " + l.id + " · q/esc back · j/k scroll")
+	status := styleDim.Render("logs: " + safe(l.id) + " · q/esc back · j/k scroll")
 	if l.ended {
 		suffix := "stream ended"
 		if l.err != nil {
-			suffix = "stream error: " + l.err.Error()
+			// the error text can quote CLI stderr, which the container writes
+			suffix = "stream error: " + safe(l.err.Error())
 		}
 		status = styleWarn.Render(suffix) + " " + status
 	}

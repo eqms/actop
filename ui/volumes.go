@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 )
@@ -41,7 +41,7 @@ func (v *volumesScreen) selected() *cli.Volume {
 }
 
 func (v *volumesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return v, nil
 	}
@@ -72,7 +72,7 @@ func (v *volumesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 
 // volumeDeleteConfirm is shared by the D hotkey and the enter menu.
 func volumeDeleteConfirm(app *App, name string) *confirmScreen {
-	q := fmt.Sprintf("delete volume %q? (data is lost)", name)
+	q := fmt.Sprintf("delete volume %q? (data is lost)", safe(name))
 	return newConfirmScreen(q, volumeDeleteCmd(app.client, name))
 }
 
@@ -81,8 +81,8 @@ func (v *volumesScreen) view(width, height int) string {
 
 	nameWidth := 12
 	for _, vol := range rows {
-		if len(vol.Configuration.Name) > nameWidth {
-			nameWidth = len(vol.Configuration.Name)
+		if w := displayWidth(vol.Configuration.Name); w > nameWidth {
+			nameWidth = w
 		}
 	}
 
@@ -98,7 +98,7 @@ func (v *volumesScreen) view(width, height int) string {
 			pad(c.Format, 7),
 			pad(byteSize(c.SizeInBytes), 8),
 			pad(c.CreationDate.Local().Format("2006-01-02 15:04"), 17),
-			c.Source,
+			safe(c.Source),
 		}
 		line := strings.Join(cells, "  ")
 		if i == v.cursor {

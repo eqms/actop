@@ -1,6 +1,6 @@
 package ui
 
-import tea "github.com/charmbracelet/bubbletea"
+import tea "charm.land/bubbletea/v2"
 
 // screen is one layer of the UI stack. The grid is the permanent base;
 // detail, logs, confirm and help get pushed on top.

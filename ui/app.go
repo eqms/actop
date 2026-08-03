@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
@@ -214,7 +214,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.width, a.height = m.Width, m.Height
 		return a, a.routeToTop(msg)
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.String() == "ctrl+c" {
 			a.closeAll()
 			return a, tea.Quit
@@ -310,24 +310,25 @@ func (a *App) closeAll() {
 
 func (a *App) header() string {
 	left := styleHeader.Render(fmt.Sprintf("actop v%s", a.version))
-	tabsPart := "  "
+	var tabs strings.Builder
+	tabs.WriteString("  ")
 	for i, name := range tabNames {
 		label := fmt.Sprintf("[%d]%s", i+1, name)
 		if i == a.activeTab {
-			tabsPart += styleTitle.Render(label)
+			tabs.WriteString(styleTitle.Render(label))
 		} else {
-			tabsPart += styleDim.Render(label)
+			tabs.WriteString(styleDim.Render(label))
 		}
-		tabsPart += " "
+		tabs.WriteString(" ")
 	}
 	info := fmt.Sprintf(" %d containers · sort %s · poll %s",
 		a.store.Len(), a.sortField, a.interval().Truncate(time.Millisecond))
-	line := left + tabsPart + styleDim.Render(info)
+	line := left + tabs.String() + styleDim.Render(info)
 
 	if !a.connOK {
 		banner := fmt.Sprintf("API server not reachable — retrying every %s (r = retry now)", a.interval())
 		if a.sysDetail != "" {
-			banner += " · " + a.sysDetail
+			banner += " · " + safe(a.sysDetail)
 		}
 		stale := ""
 		if !a.lastOK.IsZero() {
@@ -336,20 +337,24 @@ func (a *App) header() string {
 		return line + "\n" + styleErr.Render(banner) + stale
 	}
 	if a.statusMsg != "" {
-		return line + "\n" + styleWarn.Render(a.statusMsg)
+		// carries container IDs and CLI stderr; sanitized here rather than at
+		// every assignment so no future call site can bypass it
+		return line + "\n" + styleWarn.Render(safe(a.statusMsg))
 	}
 	return line
 }
 
-func (a *App) View() string {
+func (a *App) View() tea.View {
+	// v2 moved the terminal modes from program options onto the view
+	v := tea.NewView(a.Body())
+	v.AltScreen = true
+	return v
+}
+
+// Body renders the frame's text. Kept separate from View so tests can assert
+// on the content without unwrapping a tea.View.
+func (a *App) Body() string {
 	head := a.header()
 	body := a.top().view(a.width, a.height-strings.Count(head, "\n")-2)
 	return head + "\n" + body
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

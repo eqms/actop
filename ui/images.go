@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 )
@@ -41,7 +41,7 @@ func (s *imagesScreen) selected() *cli.Image {
 }
 
 func (s *imagesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
 	}
@@ -72,7 +72,7 @@ func (s *imagesScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 
 // imageDeleteConfirm is shared by the D hotkey and the enter menu.
 func imageDeleteConfirm(app *App, ref string) *confirmScreen {
-	q := fmt.Sprintf("delete image %q?", ref)
+	q := fmt.Sprintf("delete image %q?", safe(ref))
 	return newConfirmScreen(q, imageDeleteCmd(app.client, ref))
 }
 
@@ -81,8 +81,8 @@ func (s *imagesScreen) view(width, height int) string {
 
 	refWidth := 12
 	for _, img := range rows {
-		if len(img.Configuration.Name) > refWidth {
-			refWidth = len(img.Configuration.Name)
+		if w := displayWidth(img.Configuration.Name); w > refWidth {
+			refWidth = w
 		}
 	}
 

@@ -3,14 +3,15 @@ package ui
 import (
 	"bufio"
 	"context"
+	"fmt"
+	"net/url"
 	"os/exec"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
-	"github.com/eqms/actop/redact"
 )
 
 const (
@@ -102,12 +103,20 @@ func actionCmd(c cli.Client, action, id string) tea.Cmd {
 	}
 }
 
-// openURLCmd opens the URL in the default browser via macOS open(1).
-// URLs are built exclusively from parsed CLI data, never from user input.
-func openURLCmd(url string) tea.Cmd {
+// openURLCmd opens the URL in the default browser via macOS open(1). The URL
+// is assembled from CLI-reported ports and addresses, and open(1) launches an
+// application or file just as readily as it opens a browser, so the scheme is
+// verified before the value is handed over.
+func openURLCmd(rawURL string) tea.Cmd {
 	return func() tea.Msg {
-		err := exec.Command("open", url).Start()
-		return actionDoneMsg{action: "open", id: url, err: err}
+		u, err := url.Parse(rawURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			return actionDoneMsg{action: "open", id: rawURL,
+				err: fmt.Errorf("refusing to open %q: not an http(s) URL", rawURL)}
+		}
+		// #nosec G204 -- fixed binary, one argument past "--", scheme checked
+		err = exec.Command("open", "--", u.String()).Start()
+		return actionDoneMsg{action: "open", id: rawURL, err: err}
 	}
 }
 
@@ -156,9 +165,9 @@ func startLogSession(c cli.Client, id string) (*logSession, tea.Cmd, error) {
 		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for sc.Scan() {
 			select {
-			// Container stdout is untrusted: strip escape sequences and
-			// control chars before the line reaches the terminal renderer.
-			case ch <- logLineMsg{line: redact.Line(sc.Text())}:
+			// lines are sanitized where they enter the screen buffer
+			// (logsScreen.update), so every rendering path is covered
+			case ch <- logLineMsg{line: sc.Text()}:
 			case <-done:
 				return
 			}

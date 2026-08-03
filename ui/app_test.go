@@ -4,14 +4,17 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
 )
 
-func key(r rune) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+// key builds the press event for a printable character. In Bubble Tea v2 the
+// rune lives in Code and the literal text in Text, and it is String() that the
+// screens switch on.
+func key(r rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: r, Text: string(r)}
 }
 
 func testApp() (*App, *cli.MockClient) {
@@ -88,13 +91,13 @@ func TestConfirmYesTriggersAction(t *testing.T) {
 	}
 
 	found := false
-	for _, c := range mock.Calls {
+	for _, c := range mock.CallList() {
 		if c.Method == "Stop" && c.ID == "db" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("Stop not called on client: %+v", mock.Calls)
+		t.Errorf("Stop not called on client: %+v", mock.CallList())
 	}
 	if _, ok := app.top().(*gridScreen); !ok {
 		t.Errorf("confirm screen not popped, top is %T", app.top())
@@ -109,7 +112,7 @@ func TestConfirmNoDoesNothing(t *testing.T) {
 	}}})
 	app.Update(key('X'))
 	app.Update(key('n'))
-	for _, c := range mock.Calls {
+	for _, c := range mock.CallList() {
 		if c.Method == "Stop" {
 			t.Error("Stop must not be called after 'n'")
 		}
@@ -135,7 +138,7 @@ func TestTabSwitching(t *testing.T) {
 	}
 
 	// tab cycles volumes -> images
-	app.Update(tea.KeyMsg{Type: tea.KeyTab})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	if _, ok := app.top().(*imagesScreen); !ok {
 		t.Fatalf("expected images tab after cycle, got %T", app.top())
 	}
@@ -178,13 +181,13 @@ func TestVolumeDeleteConfirm(t *testing.T) {
 		t.Fatal("delete command returned nil msg")
 	}
 	found := false
-	for _, c := range mock.Calls {
+	for _, c := range mock.CallList() {
 		if c.Method == "VolumeDelete" && c.ID == "vol1" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("VolumeDelete not called: %+v", mock.Calls)
+		t.Errorf("VolumeDelete not called: %+v", mock.CallList())
 	}
 }
 
@@ -197,6 +200,27 @@ func TestResolveColumns(t *testing.T) {
 	want := []string{"name", "cpu", "mem"}
 	if len(custom) != 3 || custom[0] != want[0] || custom[1] != want[1] || custom[2] != want[2] {
 		t.Errorf("resolveColumns = %v, want %v (name forced, bogus dropped)", custom, want)
+	}
+}
+
+// The space bar reaches the screen as "space", not " ". Driving it through
+// App.Update rather than calling toggle directly is the point: this is the
+// wiring that silently broke in the v1 -> v2 key API change.
+func TestColumnsToggleViaSpaceKey(t *testing.T) {
+	app, _ := testApp()
+	app.Update(key('c'))
+	cs, ok := app.top().(*columnsScreen)
+	if !ok {
+		t.Fatalf("expected columns screen, got %T", app.top())
+	}
+	cs.cursor = 1 // "state"
+	app.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if cs.enabled("state") {
+		t.Error("space must toggle the column under the cursor")
+	}
+	app.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if !cs.enabled("state") {
+		t.Error("space must toggle back on")
 	}
 }
 
@@ -245,7 +269,7 @@ func TestViewRendersAllTabs(t *testing.T) {
 	}}})
 	for i := 0; i < 4; i++ {
 		app.switchTab(i)
-		out := app.View()
+		out := app.Body()
 		if out == "" {
 			t.Errorf("tab %d renders empty view", i)
 		}

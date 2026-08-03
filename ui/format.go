@@ -3,7 +3,23 @@ package ui
 import (
 	"fmt"
 	"time"
+	"unicode/utf8"
+
+	"github.com/eqms/actop/redact"
 )
+
+// safe strips terminal control sequences from text that originates from the
+// container CLI. Names, image references, volume sources and env values cross
+// the same trust boundary as log output: whoever publishes an image picks
+// them, and an embedded OSC 52 (clipboard write), title-set or query sequence
+// would be acted on by the host terminal the moment it is drawn. Every render
+// path that touches CLI-supplied text goes through safe, or through pad and
+// displayWidth, which apply it.
+func safe(s string) string { return redact.Line(s) }
+
+// displayWidth is the number of cells s occupies once rendered: rune count
+// after sanitizing, so stripped escape bytes never inflate a column width.
+func displayWidth(s string) int { return utf8.RuneCountInString(safe(s)) }
 
 // byteSize renders a byte count human-readable (fixed-ish width).
 func byteSize(n int64) string {
@@ -50,9 +66,7 @@ func sparkline(values []float64, width int, floor float64) string {
 	out := make([]rune, 0, width)
 	for _, v := range values {
 		idx := int(v / scale * float64(len(sparkBlocks)-1))
-		if idx < 0 {
-			idx = 0
-		}
+		idx = max(idx, 0)
 		if idx >= len(sparkBlocks) {
 			idx = len(sparkBlocks) - 1
 		}

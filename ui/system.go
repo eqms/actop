@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // systemScreen is the system tab: API server info and resource counters.
@@ -18,7 +18,7 @@ func newSystemScreen(app *App) *systemScreen {
 }
 
 func (s *systemScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
 	}
@@ -39,15 +39,15 @@ func (s *systemScreen) view(width, height int) string {
 
 	b.WriteString("\n  " + styleColHead.Render("API SERVER") + "\n")
 	if st := s.app.sysInfo; st != nil {
-		status := st.Status
-		if status == "running" {
+		status := safe(st.Status)
+		if st.Status == "running" {
 			status = styleRunning.Render(status)
 		} else {
 			status = styleStopped.Render(status)
 		}
 		line("status", status)
-		line("version", st.APIServerVersion)
-		line("app root", st.AppRoot)
+		line("version", safe(st.APIServerVersion))
+		line("app root", safe(st.AppRoot))
 	} else if !s.app.connOK {
 		line("status", styleStopped.Render("not reachable"))
 	} else {

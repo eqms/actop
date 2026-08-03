@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // columnsScreen toggles grid columns for the session. Persist a selection
@@ -51,7 +51,7 @@ func (s *columnsScreen) toggle(key string) {
 }
 
 func (s *columnsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
 	}
@@ -66,7 +66,8 @@ func (s *columnsScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		if s.cursor > 0 {
 			s.cursor--
 		}
-	case " ":
+	// v2 reports the space bar as "space"; a literal " " never matches
+	case "space":
 		s.toggle(allColumnKeys[s.cursor])
 	}
 	return s, nil

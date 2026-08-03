@@ -1,7 +1,7 @@
 package ui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // confirmScreen asks before running a destructive command.
@@ -15,7 +15,7 @@ func newConfirmScreen(question string, cmd tea.Cmd) *confirmScreen {
 }
 
 func (c *confirmScreen) update(msg tea.Msg) (screen, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return c, nil
 	}
@@ -29,6 +29,8 @@ func (c *confirmScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 }
 
 func (c *confirmScreen) view(width, height int) string {
-	return "\n  " + styleTitle.Render(c.question) + "\n\n  " +
+	// question embeds a container/volume/image name chosen by whoever
+	// created it, so it is sanitized like any other CLI-supplied text.
+	return "\n  " + styleTitle.Render(safe(c.question)) + "\n\n  " +
 		styleWarn.Render("[y]es") + "  " + styleDim.Render("[n]o") + "\n"
 }
