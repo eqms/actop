@@ -145,6 +145,20 @@ jobs:
             echo "::error::HOMEBREW_TAP_TOKEN is empty or whitespace-only — formula not updated"
             exit 1
           fi
+          # Check the token before doing any work. Without this the job clones,
+          # edits and commits, and only the push fails -- with "Invalid username
+          # or token", which says nothing about which of the two is wrong. A
+          # value that is not a GitHub token at all looks identical to one that
+          # merely lacks access.
+          if ! REPO_JSON=$(curl -fsS -H "Authorization: Bearer ${TAP_TOKEN}" \
+                 "https://api.github.com/repos/eqms/homebrew-tap" 2>/dev/null); then
+            echo "::error::HOMEBREW_TAP_TOKEN was rejected by the GitHub API. Personal access tokens start with ghp_ (classic) or github_pat_ (fine-grained); anything else is not a token."
+            exit 1
+          fi
+          if [ "$(printf '%s' "${REPO_JSON}" | jq -r '.permissions.push // false')" != "true" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is valid but has no write access to eqms/homebrew-tap. A classic PAT needs the 'repo' scope; a fine-grained one needs Contents: Read and write on that repository."
+            exit 1
+          fi
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
           SHA=$(curl -fsSL "${URL}" | sha256sum | cut -d' ' -f1)
           # The tap is public, so the clone needs no credentials at all --
