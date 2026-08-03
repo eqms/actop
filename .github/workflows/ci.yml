@@ -136,8 +136,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          # A secret pasted with a trailing newline passes a plain -z check and
+          # then fails deep inside git with an unrelated-looking message. Strip
+          # whitespace first, so a stray newline is tolerated and a truly empty
+          # secret is reported as what it is. This bit the v0.5.0 release.
+          TAP_TOKEN="$(printf '%s' "${TAP_TOKEN}" | tr -d '[:space:]')"
           if [ -z "${TAP_TOKEN}" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN secret is missing — formula not updated"
+            echo "::error::HOMEBREW_TAP_TOKEN is empty or whitespace-only — formula not updated"
             exit 1
           fi
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
