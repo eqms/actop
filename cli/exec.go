@@ -1,38 +1,126 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
+	"time"
 )
 
-const binary = "container"
+const defaultBinary = "container"
 
-// ExecClient runs the real container CLI.
-type ExecClient struct{}
+const (
+	// defaultMaxOutput caps the JSON a single CLI call may produce. Labels,
+	// env and process arguments come from whoever built the image, so an
+	// oversized response has to fail the poll rather than grow the process
+	// until the OS kills it.
+	defaultMaxOutput = 64 << 20 // 64 MiB
+	// maxStderr bounds the diagnostic text kept for error classification.
+	maxStderr = 64 << 10 // 64 KiB
+	// waitDelay bounds Wait once the process itself is done or killed. A
+	// child that spawned its own children leaves them holding the inherited
+	// pipes; without this, Wait blocks on those descendants indefinitely and
+	// takes the calling goroutine -- for log sessions, the UI -- with it.
+	waitDelay = time.Second
+)
+
+// ErrOutputTooLarge indicates a CLI call produced more output than allowed.
+var ErrOutputTooLarge = errors.New("container CLI output exceeds limit")
+
+// ExecClient runs the real container CLI. The zero value is usable; New
+// exists for symmetry with the other constructors.
+type ExecClient struct {
+	// binary and maxOutput are overridden in tests; empty/zero means default.
+	binary    string
+	maxOutput int
+}
 
 func New() *ExecClient { return &ExecClient{} }
 
-// run executes the CLI and returns stdout. Errors are mapped to
-// ErrAPIServerDown / ErrNotFound where stderr allows it.
+func (c *ExecClient) bin() string {
+	if c.binary == "" {
+		return defaultBinary
+	}
+	return c.binary
+}
+
+func (c *ExecClient) limit() int {
+	if c.maxOutput <= 0 {
+		return defaultMaxOutput
+	}
+	return c.maxOutput
+}
+
+// run executes the CLI and returns stdout, bounded by limit(). Errors are
+// mapped to ErrAPIServerDown / ErrNotFound where stderr allows it.
 func (c *ExecClient) run(ctx context.Context, args ...string) ([]byte, error) {
-	out, err := exec.CommandContext(ctx, binary, args...).Output()
+	// #nosec G204 -- fixed binary, args passed as an array (never a shell);
+	// caller-supplied names are guarded by the POSIX "--" terminator below
+	cmd := exec.CommandContext(ctx, c.bin(), args...)
+	cmd.WaitDelay = waitDelay
+	stderr := &capBuffer{cap: maxStderr}
+	cmd.Stderr = stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("container %v: %w", args, err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("container %v: %w", args, err)
+	}
+
+	// Read one byte past the cap so "exactly at the limit" stays valid and
+	// only genuine overflow is rejected.
+	limit := c.limit()
+	out, readErr := io.ReadAll(io.LimitReader(stdout, int64(limit)+1))
+	if readErr == nil && len(out) > limit {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return nil, fmt.Errorf("container %v: %w", args, ErrOutputTooLarge)
+	}
+
+	err = cmd.Wait()
+	if readErr != nil {
+		return nil, fmt.Errorf("container %v: read output: %w", args, readErr)
+	}
 	if err == nil {
 		return out, nil
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
-		stderr := string(ee.Stderr)
-		if mapped := classifyStderr(stderr); mapped != nil {
+		// ee.Stderr is only populated by Output(); use the captured buffer
+		s := stderr.String()
+		if mapped := classifyStderr(s); mapped != nil {
 			return nil, mapped
 		}
-		return nil, &CLIError{Args: args, Stderr: stderr, ExitCode: ee.ExitCode()}
+		return nil, &CLIError{Args: args, Stderr: s, ExitCode: ee.ExitCode()}
 	}
 	// binary missing, context timeout, ...
 	return nil, fmt.Errorf("container %v: %w", args, err)
 }
+
+// capBuffer keeps at most cap bytes and discards the rest, reporting every
+// write as successful so a chatty process is truncated, not aborted.
+type capBuffer struct {
+	buf bytes.Buffer
+	cap int
+}
+
+func (b *capBuffer) Write(p []byte) (int, error) {
+	if room := b.cap - b.buf.Len(); room > 0 {
+		if len(p) > room {
+			b.buf.Write(p[:room])
+		} else {
+			b.buf.Write(p)
+		}
+	}
+	return len(p), nil
+}
+
+func (b *capBuffer) String() string { return b.buf.String() }
 
 func (c *ExecClient) List(ctx context.Context, all bool) ([]ListItem, error) {
 	args := []string{"ls", "--format", "json"}
@@ -153,10 +241,18 @@ func (c *ExecClient) LogsCmd(id string, follow bool) *exec.Cmd {
 		args = append(args, "--follow")
 	}
 	args = append(args, "--", id)
-	return exec.Command(binary, args...)
+	// #nosec G204 -- fixed binary, args as an array, id behind "--"
+	cmd := exec.Command(c.bin(), args...)
+	// the logs screen kills this from the update loop; see waitDelay
+	cmd.WaitDelay = waitDelay
+	return cmd
 }
 
 func (c *ExecClient) ExecCmd(id string, shell ...string) *exec.Cmd {
 	args := append([]string{"exec", "-it", "--", id}, shell...)
-	return exec.Command(binary, args...)
+	// #nosec G204 -- fixed binary, args as an array; shell comes from the
+	// config allowlist (config.ShellAllowed) or a fixed probe string
+	cmd := exec.Command(c.bin(), args...)
+	cmd.WaitDelay = waitDelay
+	return cmd
 }
