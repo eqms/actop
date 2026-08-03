@@ -147,10 +147,12 @@ jobs:
           fi
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
           SHA=$(curl -fsSL "${URL}" | sha256sum | cut -d' ' -f1)
-          # Pass the token per command instead of embedding it in the remote
-          # URL, which would persist it in the clone's .git/config.
-          AUTH="Authorization: Basic $(printf 'x-access-token:%s' "${TAP_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="${AUTH}" clone https://github.com/eqms/homebrew-tap.git tap
+          # The tap is public, so the clone needs no credentials at all --
+          # and an http.extraheader that GitHub rejects turns an anonymous
+          # read into a 401, which is what broke the v0.6.0 run. Only the
+          # push authenticates, via an explicit remote URL that is never
+          # written to .git/config.
+          git clone https://github.com/eqms/homebrew-tap.git tap
           cd tap
           # anchored checks: fail loudly if the formula diverged
           grep -q '^  url "' Formula/actop.rb
@@ -165,5 +167,5 @@ jobs:
           else
             git add Formula/actop.rb
             git commit -m "[CHG] actop ${TAG}: update formula"
-            git -c http.extraheader="${AUTH}" push
+            git push "https://x-access-token:${TAP_TOKEN}@github.com/eqms/homebrew-tap.git" HEAD:main
           fi
