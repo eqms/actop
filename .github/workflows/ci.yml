@@ -22,8 +22,19 @@ jobs:
         with:
           go-version: '1.26'
 
+      # -race matters here: log streaming and the poll commands run on their
+      # own goroutines and hand results to the update loop via messages.
       - name: Run tests
-        run: go test ./...
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Report coverage
+        run: go tool cover -func=coverage.out | tail -1
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
 
       - name: Run govulncheck
         run: |
@@ -131,7 +142,10 @@ jobs:
           fi
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
           SHA=$(curl -fsSL "${URL}" | sha256sum | cut -d' ' -f1)
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/eqms/homebrew-tap.git" tap
+          # Pass the token per command instead of embedding it in the remote
+          # URL, which would persist it in the clone's .git/config.
+          AUTH="Authorization: Basic $(printf 'x-access-token:%s' "${TAP_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="${AUTH}" clone https://github.com/eqms/homebrew-tap.git tap
           cd tap
           # anchored checks: fail loudly if the formula diverged
           grep -q '^  url "' Formula/actop.rb
@@ -146,5 +160,5 @@ jobs:
           else
             git add Formula/actop.rb
             git commit -m "[CHG] actop ${TAG}: update formula"
-            git push
+            git -c http.extraheader="${AUTH}" push
           fi

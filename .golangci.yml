@@ -2,3 +2,8 @@ version: "2"
 
 linters:
   default: standard
+  enable:
+    # actop shells out to the container CLI and renders untrusted output,
+    # so the security and correctness passes earn their keep here.
+    - gosec
+    - gocritic

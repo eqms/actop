@@ -12,7 +12,11 @@ run-dev:
 	./actop
 
 test:
-	go test ./...
+	go test -race ./...
+
+cover:
+	go test -race -covermode=atomic -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out | tail -1
 
 lint:
 	golangci-lint run --timeout=5m
@@ -24,6 +28,6 @@ fixtures:
 	@echo "WARNING: anonymize secrets in cli/testdata/*.json before committing!"
 
 clean:
-	rm -f actop
+	rm -f actop coverage.out
 
-.PHONY: build run-dev test lint fixtures clean
+.PHONY: build run-dev test cover lint fixtures clean
