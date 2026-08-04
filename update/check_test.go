@@ -23,7 +23,7 @@ func releaseServer(t *testing.T, tags map[string]string, hits *int64) *httptest.
 		}
 		for repo, tag := range tags {
 			if r.URL.Path == "/repos/"+repo+"/releases/latest" {
-				fmt.Fprintf(w, `{"tag_name":%q}`, tag)
+				_, _ = fmt.Fprintf(w, `{"tag_name":%q}`, tag)
 				return
 			}
 		}
@@ -118,12 +118,12 @@ func TestRunSurvivesServerFailures(t *testing.T) {
 		{"500", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(500) }},
 		{"403 rate limited", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(403) }},
 		{"malformed json", func(w http.ResponseWriter, _ *http.Request) {
-			fmt.Fprint(w, `{"tag_name":`)
+			_, _ = fmt.Fprint(w, `{"tag_name":`)
 		}},
 		{"oversized body", func(w http.ResponseWriter, _ *http.Request) {
-			fmt.Fprint(w, `{"tag_name":"1.2.0","junk":"`)
-			fmt.Fprint(w, strings.Repeat("x", 2<<20))
-			fmt.Fprint(w, `"}`)
+			_, _ = fmt.Fprint(w, `{"tag_name":"1.2.0","junk":"`)
+			_, _ = fmt.Fprint(w, strings.Repeat("x", 2<<20))
+			_, _ = fmt.Fprint(w, `"}`)
 		}},
 	}
 	for _, c := range cases {
