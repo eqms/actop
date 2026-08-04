@@ -147,16 +147,39 @@ jobs:
           fi
           # Check the token before doing any work. Without this the job clones,
           # edits and commits, and only the push fails -- with "Invalid username
-          # or token", which says nothing about which of the two is wrong. A
-          # value that is not a GitHub token at all looks identical to one that
-          # merely lacks access.
-          if ! REPO_JSON=$(curl -fsS -H "Authorization: Bearer ${TAP_TOKEN}" \
-                 "https://api.github.com/repos/eqms/homebrew-tap" 2>/dev/null); then
-            echo "::error::HOMEBREW_TAP_TOKEN was rejected by the GitHub API. Personal access tokens start with ghp_ (classic) or github_pat_ (fine-grained); anything else is not a token."
-            exit 1
-          fi
-          if [ "$(printf '%s' "${REPO_JSON}" | jq -r '.permissions.push // false')" != "true" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN is valid but has no write access to eqms/homebrew-tap. A classic PAT needs the 'repo' scope; a fine-grained one needs Contents: Read and write on that repository."
+          # or token", which says nothing about which of the two is wrong.
+          #
+          # Branch on the HTTP status, never on curl's exit code: `curl -f`
+          # collapses every failure into one, and the statuses mean genuinely
+          # different things here. A fine-grained PAT reports a repository it
+          # was not granted as 404, not 403 -- so "token has no access to the
+          # tap" and "value is not a token at all" produced the identical
+          # error message. That cost the v0.7.0 release a round of guessing.
+          REPO_JSON="${RUNNER_TEMP}/tap-repo.json"
+          HTTP=$(curl -sS -o "${REPO_JSON}" -w '%{http_code}' \
+                   -H "Authorization: Bearer ${TAP_TOKEN}" \
+                   -H "Accept: application/vnd.github+json" \
+                   "https://api.github.com/repos/eqms/homebrew-tap" || echo 000)
+          case "${HTTP}" in
+            200) ;;
+            401)
+              echo "::error::HOMEBREW_TAP_TOKEN is not a valid token (HTTP 401) -- mistyped, expired or revoked. Classic PATs start with ghp_, fine-grained ones with github_pat_."
+              exit 1 ;;
+            403)
+              echo "::error::HOMEBREW_TAP_TOKEN was refused (HTTP 403). The token is real but not permitted to read eqms/homebrew-tap -- check SSO authorisation and expiry."
+              exit 1 ;;
+            404)
+              echo "::error::HOMEBREW_TAP_TOKEN cannot see eqms/homebrew-tap (HTTP 404). A fine-grained PAT reports repositories it was not granted as non-existent, so this almost certainly means the tap is missing from the token's 'Repository access' list -- the token itself is fine."
+              exit 1 ;;
+            000)
+              echo "::error::Could not reach the GitHub API to verify HOMEBREW_TAP_TOKEN."
+              exit 1 ;;
+            *)
+              echo "::error::Unexpected HTTP ${HTTP} while verifying HOMEBREW_TAP_TOKEN against eqms/homebrew-tap."
+              exit 1 ;;
+          esac
+          if [ "$(jq -r '.permissions.push // false' "${REPO_JSON}")" != "true" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN can read eqms/homebrew-tap but not write to it. A classic PAT needs the 'repo' scope; a fine-grained one needs Contents: Read and write on that repository."
             exit 1
           fi
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
