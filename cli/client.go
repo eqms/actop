@@ -17,6 +17,9 @@ type Client interface {
 	Inspect(ctx context.Context, id string) (*ListItem, error)
 	// SystemStatus reports whether the container API server is running.
 	SystemStatus(ctx context.Context) (*SystemStatus, error)
+	// Version reports the container CLI version, e.g. "1.2.0". Unlike
+	// SystemStatus it also answers while the API server is stopped.
+	Version(ctx context.Context) (string, error)
 	// Volumes returns all named volumes.
 	Volumes(ctx context.Context) ([]Volume, error)
 	// Images returns all local images.

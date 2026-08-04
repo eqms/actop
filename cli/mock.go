@@ -21,6 +21,10 @@ type MockClient struct {
 	ImagesFn       func(ctx context.Context) ([]Image, error)
 	ActionFn       func(ctx context.Context, action, id string) error
 
+	// VersionValue is returned by Version; empty means "1.0.0".
+	VersionValue string
+	VersionErr   error
+
 	mu    sync.Mutex
 	calls []MockCall
 }
@@ -92,6 +96,17 @@ func (m *MockClient) Images(ctx context.Context) ([]Image, error) {
 		return m.ImagesFn(ctx)
 	}
 	return nil, nil
+}
+
+func (m *MockClient) Version(ctx context.Context) (string, error) {
+	m.record("Version", "")
+	if m.VersionErr != nil {
+		return "", m.VersionErr
+	}
+	if m.VersionValue != "" {
+		return m.VersionValue, nil
+	}
+	return "1.0.0", nil
 }
 
 func (m *MockClient) VolumeDelete(ctx context.Context, name string) error {

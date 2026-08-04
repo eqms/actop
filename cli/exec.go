@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"time"
 )
 
@@ -255,4 +256,24 @@ func (c *ExecClient) ExecCmd(id string, shell ...string) *exec.Cmd {
 	cmd := exec.Command(c.bin(), args...)
 	cmd.WaitDelay = waitDelay
 	return cmd
+}
+
+// versionPattern pulls the three-component version out of the CLI banner,
+// which also carries build and commit information.
+var versionPattern = regexp.MustCompile(`\d+\.\d+\.\d+`)
+
+// Version returns the container CLI version. apiServerVersion from
+// `system status` is deliberately not reused: it is empty while the API
+// server is stopped, which is exactly the state a user is in right after
+// `container system stop` -- immediately before updating.
+func (c *ExecClient) Version(ctx context.Context) (string, error) {
+	out, err := c.run(ctx, "--version")
+	if err != nil {
+		return "", err
+	}
+	v := versionPattern.FindString(string(out))
+	if v == "" {
+		return "", fmt.Errorf("parse container version: no version in %q", string(out))
+	}
+	return v, nil
 }

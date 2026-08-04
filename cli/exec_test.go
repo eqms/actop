@@ -93,6 +93,26 @@ func TestRunReportsExitCodeAndStderr(t *testing.T) {
 	}
 }
 
+// The real CLI prints "container CLI version 1.2.0 (build: release, commit:
+// 6e65319)"; only the version number is of interest.
+func TestVersionExtractsNumber(t *testing.T) {
+	c := fakeBinary(t, `echo "container CLI version 1.2.0 (build: release, commit: 6e65319)"`, 1024)
+	v, err := c.Version(context.Background())
+	if err != nil {
+		t.Fatalf("Version: %v", err)
+	}
+	if v != "1.2.0" {
+		t.Errorf("Version = %q, want %q", v, "1.2.0")
+	}
+}
+
+func TestVersionRejectsUnrecognizedOutput(t *testing.T) {
+	c := fakeBinary(t, `echo "something else entirely"`, 1024)
+	if _, err := c.Version(context.Background()); err == nil {
+		t.Error("output without a version number must be an error")
+	}
+}
+
 // A zero-value client must still work: New() is the documented constructor,
 // but nothing in the type should depend on it having run.
 func TestZeroValueClientHasDefaults(t *testing.T) {
