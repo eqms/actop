@@ -425,3 +425,31 @@ func TestHeaderDropsBadgeWhenTooNarrow(t *testing.T) {
 		t.Errorf("badge must not push the tab bar out of a 40-column terminal:\n%s", app.header())
 	}
 }
+
+func TestSystemTabRendersUpdates(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	app.Update(updatesMsg{result: update.Result{Components: []update.Component{
+		{Name: "container", Current: "1.1.0", Latest: "1.2.0", Hint: "/usr/local/bin/update-container.sh"},
+		{Name: "actop", Current: "0.6.1", Latest: "0.7.0", Hint: "brew upgrade actop"},
+	}}})
+	view := newSystemScreen(app).view(200, 40)
+	for _, want := range []string{
+		"UPDATES",
+		"container", "1.1.0 → 1.2.0 available", "/usr/local/bin/update-container.sh",
+		"actop", "0.6.1 → 0.7.0 available", "brew upgrade actop",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("system tab is missing %q:\n%s", want, view)
+		}
+	}
+}
+
+// Nothing outdated means the section is absent entirely, not an empty header.
+func TestSystemTabOmitsUpdatesWhenNone(t *testing.T) {
+	app, _ := testApp()
+	view := newSystemScreen(app).view(200, 40)
+	if strings.Contains(view, "UPDATES") {
+		t.Errorf("empty result must not render a section:\n%s", view)
+	}
+}
