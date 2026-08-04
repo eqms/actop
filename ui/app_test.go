@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -372,5 +373,55 @@ func TestCheckUpdatesCmdSurvivesVersionError(t *testing.T) {
 	msg := checkUpdatesCmd(mock, config.Default(), "0.6.1", ck)().(updatesMsg)
 	if msg.result.Count() != 1 || msg.result.Components[0].Name != "actop" {
 		t.Errorf("want only actop reported, got %+v", msg.result.Components)
+	}
+}
+
+func withUpdates(app *App, n int) {
+	comps := make([]update.Component, 0, n)
+	names := []string{"container", "actop"}
+	for i := 0; i < n; i++ {
+		comps = append(comps, update.Component{
+			Name: names[i%len(names)], Current: "1.1.0", Latest: "1.2.0", Hint: "brew upgrade actop",
+		})
+	}
+	app.Update(updatesMsg{result: update.Result{Components: comps}})
+}
+
+func TestHeaderShowsUpdateBadge(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	if strings.Contains(app.header(), "update") {
+		t.Fatal("no result yet, but the header already advertises updates")
+	}
+	withUpdates(app, 2)
+	if !strings.Contains(app.header(), "2 updates") {
+		t.Errorf("header lacks the badge:\n%s", app.header())
+	}
+	app.updates = update.Result{}
+	withUpdates(app, 1)
+	if !strings.Contains(app.header(), "1 update") || strings.Contains(app.header(), "1 updates") {
+		t.Errorf("singular badge wrong:\n%s", app.header())
+	}
+}
+
+// The error banner owns the header while the API server is unreachable; an
+// update hint must not compete with it.
+func TestHeaderHidesBadgeWhileDisconnected(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	withUpdates(app, 2)
+	app.connOK = false
+	if strings.Contains(app.header(), "2 updates") {
+		t.Errorf("badge must be suppressed while disconnected:\n%s", app.header())
+	}
+}
+
+// On a narrow terminal the tab bar matters more than the hint.
+func TestHeaderDropsBadgeWhenTooNarrow(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 40, 40
+	withUpdates(app, 2)
+	if strings.Contains(app.header(), "2 updates") {
+		t.Errorf("badge must not push the tab bar out of a 40-column terminal:\n%s", app.header())
 	}
 }
