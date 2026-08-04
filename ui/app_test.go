@@ -1,6 +1,10 @@
 package ui
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -8,6 +12,7 @@ import (
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
+	"github.com/eqms/actop/update"
 )
 
 // key builds the press event for a printable character. In Bubble Tea v2 the
@@ -281,5 +286,91 @@ func TestTickSchedulesPoll(t *testing.T) {
 	_, cmd := app.Update(tickMsg(time.Now()))
 	if cmd == nil {
 		t.Fatal("tick must schedule commands")
+	}
+}
+
+func TestUpdatesMsgStoresResult(t *testing.T) {
+	app, _ := testApp()
+	app.Update(updatesMsg{result: update.Result{
+		Components: []update.Component{
+			{Name: "container", Current: "1.1.0", Latest: "1.2.0", Hint: "/usr/local/bin/update-container.sh"},
+		},
+	}})
+	if app.updates.Count() != 1 {
+		t.Fatalf("updates.Count = %d, want 1", app.updates.Count())
+	}
+}
+
+// Opting out must prevent the command from existing at all -- not merely
+// from rendering its result.
+func TestCheckUpdatesCmdRespectsOptOut(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "1")
+	mock := &cli.MockClient{}
+	if cmd := checkUpdatesCmd(mock, config.Default(), "0.6.1", nil); cmd != nil {
+		t.Fatal("opt-out must yield a nil command")
+	}
+	if len(mock.CallList()) != 0 {
+		t.Errorf("opt-out must not touch the client, got %+v", mock.CallList())
+	}
+}
+
+// The command must ask the CLI for the installed container version and hand
+// both versions to the checker.
+func TestCheckUpdatesCmdReportsBothComponents(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/apple/container/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"1.2.0"}`)
+		case "/repos/eqms/actop/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"v0.7.0"}`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	mock := &cli.MockClient{VersionValue: "1.1.0"}
+	ck := &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+	cmd := checkUpdatesCmd(mock, config.Default(), "0.6.1", ck)
+	if cmd == nil {
+		t.Fatal("want a command")
+	}
+	msg, ok := cmd().(updatesMsg)
+	if !ok {
+		t.Fatalf("command returned %T, want updatesMsg", cmd())
+	}
+	if msg.result.Count() != 2 {
+		t.Errorf("Count = %d, want 2: %+v", msg.result.Count(), msg.result.Components)
+	}
+	var sawVersion bool
+	for _, c := range mock.CallList() {
+		if c.Method == "Version" {
+			sawVersion = true
+		}
+	}
+	if !sawVersion {
+		t.Error("the command must query the container CLI version")
+	}
+}
+
+// A container CLI that is missing or broken must not suppress the actop
+// check -- the two components are independent.
+func TestCheckUpdatesCmdSurvivesVersionError(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/eqms/actop/releases/latest" {
+			_, _ = fmt.Fprint(w, `{"tag_name":"0.7.0"}`)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+
+	mock := &cli.MockClient{VersionErr: errors.New("no such binary")}
+	ck := &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+	msg := checkUpdatesCmd(mock, config.Default(), "0.6.1", ck)().(updatesMsg)
+	if msg.result.Count() != 1 || msg.result.Components[0].Name != "actop" {
+		t.Errorf("want only actop reported, got %+v", msg.result.Components)
 	}
 }

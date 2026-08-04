@@ -13,6 +13,7 @@ import (
 	"github.com/eqms/actop/config"
 	"github.com/eqms/actop/metrics"
 	"github.com/eqms/actop/model"
+	"github.com/eqms/actop/update"
 )
 
 const (
@@ -38,6 +39,10 @@ type App struct {
 	volumes []cli.Volume
 	images  []cli.Image
 	sysInfo *cli.SystemStatus
+	updates update.Result
+	// checker is nil in production (the zero-value Checker is the real one);
+	// tests inject one pointing at an httptest server.
+	checker *update.Checker
 	columns []string
 
 	sortField     model.SortField
@@ -135,6 +140,7 @@ func (a *App) Init() tea.Cmd {
 		fetchListCmd(a.client, a.allContainers),
 		fetchStatsCmd(a.client),
 		tickCmd(a.interval()),
+		checkUpdatesCmd(a.client, a.cfg, a.version, a.checker),
 	)
 }
 
@@ -278,6 +284,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.sysInfo = m.status
 			a.sysDetail = "system status: " + m.status.Status
 		}
+		return a, nil
+
+	case updatesMsg:
+		a.updates = m.result
 		return a, nil
 
 	case actionDoneMsg:

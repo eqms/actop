@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/eqms/actop/cli"
+	"github.com/eqms/actop/update"
 )
 
 type tickMsg time.Time
@@ -45,3 +46,5 @@ type execFinishedMsg struct{ err error }
 type logLineMsg struct{ line string }
 
 type logStreamEndMsg struct{ err error }
+
+type updatesMsg struct{ result update.Result }
