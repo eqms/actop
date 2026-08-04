@@ -453,3 +453,70 @@ func TestSystemTabOmitsUpdatesWhenNone(t *testing.T) {
 		t.Errorf("empty result must not render a section:\n%s", view)
 	}
 }
+
+// Every other test drives checkUpdatesCmd directly, bypassing App.Init()
+// entirely. This one verifies the wiring Init() actually performs: that
+// a.checker reaches checkUpdatesCmd inside the batch it returns, and that the
+// resulting updatesMsg, once fed back through App.Update, lands in
+// app.updates. Init() returns tea.Batch(...), which collapses to a single
+// command whose message is a tea.BatchMsg ([]tea.Cmd) -- each of those must
+// be invoked separately to obtain the individual messages.
+func TestInitWiresCheckerIntoUpdatesMsg(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/apple/container/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"1.2.0"}`)
+		case "/repos/eqms/actop/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"v0.7.0"}`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	app, mock := testApp()
+	app.version = "0.6.1" // testApp() uses "test", which is not valid semver
+	mock.VersionValue = "1.1.0"
+	app.checker = &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+
+	initCmd := app.Init()
+	if initCmd == nil {
+		t.Fatal("Init() must return a command")
+	}
+	batch, ok := initCmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("Init() message = %T, want tea.BatchMsg", initCmd())
+	}
+
+	// Run every command in the batch concurrently -- one of them is
+	// tickCmd(a.interval()), which blocks for the poll interval and is of no
+	// interest here, so the result is collected via a channel rather than by
+	// running commands one at a time in order.
+	results := make(chan tea.Msg, len(batch))
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		go func(c tea.Cmd) { results <- c() }(c)
+	}
+
+	timeout := time.After(3 * time.Second)
+	for i := 0; i < len(batch); i++ {
+		select {
+		case msg := <-results:
+			um, ok := msg.(updatesMsg)
+			if !ok {
+				continue
+			}
+			app.Update(um)
+			if app.updates.Count() != 2 {
+				t.Fatalf("app.updates.Count() = %d, want 2 (checker reached through Init)", app.updates.Count())
+			}
+			return
+		case <-timeout:
+			t.Fatal("timed out waiting for updatesMsg out of Init()'s batch")
+		}
+	}
+	t.Fatal("Init() batch never produced an updatesMsg -- a.checker did not reach checkUpdatesCmd")
+}

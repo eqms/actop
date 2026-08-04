@@ -207,6 +207,29 @@ func TestRunDoesNotCacheFailures(t *testing.T) {
 	}
 }
 
+// hintFor's "container" branch depends on whether updateScript exists on the
+// machine running the test -- true on a dev box with Apple Container's signed
+// package installed, false on a bare CI runner. Both outcomes are documented
+// here rather than forced, since restructuring hintFor to inject that check
+// would be a refactor of working code for the sake of one untested branch.
+func TestHintFor(t *testing.T) {
+	if got := hintFor("actop"); got != "brew upgrade actop" {
+		t.Errorf(`hintFor("actop") = %q, want "brew upgrade actop"`, got)
+	}
+
+	got := hintFor("container")
+	if got != updateScript && got != releasesPage {
+		t.Errorf("hintFor(%q) = %q, want %q or %q", "container", got, updateScript, releasesPage)
+	}
+	if got == "" {
+		t.Error(`hintFor("container") must never be empty`)
+	}
+
+	if got := hintFor("unknown"); got != "" {
+		t.Errorf(`hintFor("unknown") = %q, want ""`, got)
+	}
+}
+
 // The zero value must be usable: nil HTTP client, empty BaseURL, nil Now.
 func TestZeroValueCheckerHasDefaults(t *testing.T) {
 	var ck Checker
