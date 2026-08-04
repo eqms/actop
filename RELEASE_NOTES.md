@@ -6,6 +6,18 @@
 
 ## Deutsche Release Notes
 
+### v0.7.0 (2026-08-04)
+
+- Update-Hinweis beim Start: actop prüft einmal täglich, ob eine neuere
+  Version von Apple Container oder von actop vorliegt, und zeigt den
+  passenden Befehl an. actop installiert nichts selbst.
+- Der Hinweis erscheint als Badge in der Kopfzeile und ausführlich im
+  System-Tab unter `UPDATES`.
+- Abschaltbar mit `updateCheck = false` in `config.toml` oder mit
+  `ACTOP_NO_UPDATE_CHECK=1` für einen einzelnen Start.
+
+---
+
 ### v0.6.1 (2026-08-03)
 
 Reines Wartungs-Release: Am Programm selbst hat sich nichts geändert, das
@@ -134,6 +146,18 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.7.0 (2026-08-04)
+
+- Start-up update hint: actop checks once a day whether a newer Apple
+  Container or actop release exists and shows the command that installs it.
+  actop never installs anything itself.
+- The hint appears as a badge in the header and in full under `UPDATES` in
+  the system tab.
+- Opt out with `updateCheck = false` in `config.toml`, or with
+  `ACTOP_NO_UPDATE_CHECK=1` for a single run.
+
+---
 
 ### v0.6.1 (2026-08-03)
 
