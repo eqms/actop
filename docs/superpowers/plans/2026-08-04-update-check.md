@@ -51,7 +51,7 @@
 | `ui/system.go` (modify) | `UPDATES` block. |
 | `ui/app_test.go` (modify) | Wiring, badge and suppression tests. |
 | `ui/program_test.go` (modify) | Env guard so the smoke test stays offline. |
-| `VERSION`, `RELEASE_NOTES.md`, `README.md`, `README.en.md` (modify) | Release paperwork. |
+| `VERSION`, `RELEASE_NOTES.md`, `README.md` (modify) | Release paperwork. |
 
 ---
 

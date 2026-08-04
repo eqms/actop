@@ -13,6 +13,7 @@ import (
 	"github.com/eqms/actop/config"
 	"github.com/eqms/actop/metrics"
 	"github.com/eqms/actop/model"
+	"github.com/eqms/actop/update"
 )
 
 const (
@@ -38,6 +39,10 @@ type App struct {
 	volumes []cli.Volume
 	images  []cli.Image
 	sysInfo *cli.SystemStatus
+	updates update.Result
+	// checker is nil in production (the zero-value Checker is the real one);
+	// tests inject one pointing at an httptest server.
+	checker *update.Checker
 	columns []string
 
 	sortField     model.SortField
@@ -135,6 +140,7 @@ func (a *App) Init() tea.Cmd {
 		fetchListCmd(a.client, a.allContainers),
 		fetchStatsCmd(a.client),
 		tickCmd(a.interval()),
+		checkUpdatesCmd(a.client, a.cfg, a.version, a.checker),
 	)
 }
 
@@ -280,6 +286,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case updatesMsg:
+		a.updates = m.result
+		return a, nil
+
 	case actionDoneMsg:
 		if m.err != nil {
 			a.statusMsg = fmt.Sprintf("%s %s: %s", m.action, m.id, m.err)
@@ -309,9 +319,11 @@ func (a *App) closeAll() {
 }
 
 func (a *App) header() string {
-	left := styleHeader.Render(fmt.Sprintf("actop v%s", a.version))
-	var tabs strings.Builder
+	leftPlain := fmt.Sprintf("actop v%s", a.version)
+	left := styleHeader.Render(leftPlain)
+	var tabs, tabsPlain strings.Builder
 	tabs.WriteString("  ")
+	tabsPlain.WriteString("  ")
 	for i, name := range tabNames {
 		label := fmt.Sprintf("[%d]%s", i+1, name)
 		if i == a.activeTab {
@@ -320,6 +332,7 @@ func (a *App) header() string {
 			tabs.WriteString(styleDim.Render(label))
 		}
 		tabs.WriteString(" ")
+		tabsPlain.WriteString(label + " ")
 	}
 	info := fmt.Sprintf(" %d containers · sort %s · poll %s",
 		a.store.Len(), a.sortField, a.interval().Truncate(time.Millisecond))
@@ -336,12 +349,34 @@ func (a *App) header() string {
 		}
 		return line + "\n" + styleErr.Render(banner) + stale
 	}
+
+	// The badge is the least important thing on this line: it yields to the
+	// error banner above and to a terminal too narrow for the tab bar.
+	if badge := a.updateBadge(); badge != "" {
+		plain := leftPlain + tabsPlain.String() + info
+		if a.width == 0 || displayWidth(plain)+displayWidth(badge) <= a.width {
+			line += styleWarn.Render(badge)
+		}
+	}
+
 	if a.statusMsg != "" {
 		// carries container IDs and CLI stderr; sanitized here rather than at
 		// every assignment so no future call site can bypass it
 		return line + "\n" + styleWarn.Render(safe(a.statusMsg))
 	}
 	return line
+}
+
+// updateBadge is the compact header hint; the system tab carries the detail.
+func (a *App) updateBadge() string {
+	switch n := a.updates.Count(); n {
+	case 0:
+		return ""
+	case 1:
+		return "  ⬆ 1 update"
+	default:
+		return fmt.Sprintf("  ⬆ %d updates", n)
+	}
 }
 
 func (a *App) View() tea.View {

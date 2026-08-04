@@ -75,6 +75,7 @@ sortReversed = false
 allContainers = true
 shell = ""               # leer = Auto-Erkennung; nur sh/bash/zsh/fish erlaubt
 columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
+updateCheck = true       # täglicher Versionscheck; ACTOP_NO_UPDATE_CHECK=1 deaktiviert ihn
 ```
 
 ### Sicherheit
@@ -87,6 +88,9 @@ columns = []             # leer = alle; z.B. ["state","cpu","hist","mem","ip"]
 - Container-Logs werden vor dem Rendern von ANSI-/OSC-Escape-Sequenzen und
   Steuerzeichen befreit (kein Clipboard-Hijack/Titel-Spoofing durch bösartige
   Container-Ausgaben); Namen gehen mit POSIX-`--`-Terminator an die CLI.
+- Der Update-Check fragt einmal täglich `api.github.com` nach den neuesten
+  Releases — ohne Token, ohne Telemetrie, und nur nach Versionsnummern.
+  Abschaltbar per `updateCheck = false` oder `ACTOP_NO_UPDATE_CHECK=1`.
 
 ### Neu in v0.5
 
@@ -172,6 +176,7 @@ sortReversed = false
 allContainers = true
 shell = ""               # empty = auto-detect; only sh/bash/zsh/fish allowed
 columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
+updateCheck = true       # daily release check; ACTOP_NO_UPDATE_CHECK=1 turns it off
 ```
 
 ### Security
@@ -185,6 +190,9 @@ columns = []             # empty = all; e.g. ["state","cpu","hist","mem","ip"]
   characters before rendering (no clipboard hijacking/title spoofing via
   malicious container output); names are passed to the CLI behind the POSIX
   `--` terminator.
+- The update check queries `api.github.com` once a day for the latest
+  releases — no token, no telemetry, version numbers only. Disable it with
+  `updateCheck = false` or `ACTOP_NO_UPDATE_CHECK=1`.
 
 ### New in v0.5
 

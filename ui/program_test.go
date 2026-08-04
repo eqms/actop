@@ -39,6 +39,10 @@ func (b *syncBuffer) String() string {
 // call view() directly and would not catch a program-level regression -- the
 // View contract and alt-screen handling both moved in the v1 -> v2 upgrade.
 func TestProgramRendersAndQuits(t *testing.T) {
+	// The smoke test boots the real program, and Init fires the release
+	// check. The suite must not depend on network access.
+	t.Setenv(config.EnvNoUpdateCheck, "1")
+
 	mock := &cli.MockClient{
 		ListFn: func(context.Context, bool) ([]cli.ListItem, error) {
 			return []cli.ListItem{{

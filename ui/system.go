@@ -73,6 +73,17 @@ func (s *systemScreen) view(width, height int) string {
 		line("volume size", byteSize(volBytes)+" (allocated)")
 	}
 
+	// Names, versions and hints all originate in update/, which validates
+	// remote tags against plain semver -- safe() is the second line of
+	// defence, applied because everything rendered goes through it.
+	if s.app.updates.Count() > 0 {
+		b.WriteString("\n  " + styleColHead.Render("UPDATES") + "\n")
+		for _, c := range s.app.updates.Components {
+			line(safe(c.Name), styleWarn.Render(fmt.Sprintf("%s → %s available", safe(c.Current), safe(c.Latest))))
+			line("", styleDim.Render(safe(c.Hint)))
+		}
+	}
+
 	b.WriteString("\n  " + styleColHead.Render("HOST") + "\n")
 	line("cpus", fmt.Sprintf("%d", runtime.NumCPU()))
 	line("actop", fmt.Sprintf("v%s (poll %s)", s.app.version, s.app.cfg.PollInterval()))

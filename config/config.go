@@ -19,6 +19,9 @@ type Config struct {
 	AllContainers  bool     `toml:"allContainers"`
 	Shell          string   `toml:"shell"`
 	Columns        []string `toml:"columns"`
+	// UpdateCheck is a pointer so an explicit `updateCheck = false` stays
+	// distinguishable from an absent key, which must default to true.
+	UpdateCheck *bool `toml:"updateCheck"`
 }
 
 func Default() Config {
@@ -64,6 +67,23 @@ func Load() (Config, error) {
 		return Default(), fmt.Errorf("parse %s: %w", path, err)
 	}
 	return cfg, nil
+}
+
+// EnvNoUpdateCheck disables the release check for a single run, without
+// touching the config file.
+const EnvNoUpdateCheck = "ACTOP_NO_UPDATE_CHECK"
+
+// UpdateCheckEnabled reports whether actop may contact the GitHub API on
+// start. The environment wins over the file so the check can be suppressed
+// per run; an absent setting means enabled.
+func (c Config) UpdateCheckEnabled() bool {
+	if v := os.Getenv(EnvNoUpdateCheck); v != "" && v != "0" {
+		return false
+	}
+	if c.UpdateCheck != nil {
+		return *c.UpdateCheck
+	}
+	return true
 }
 
 // AllowedShells is the whitelist for the exec-shell feature. Only these

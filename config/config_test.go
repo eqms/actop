@@ -143,3 +143,51 @@ func TestShellAllowlist(t *testing.T) {
 		}
 	}
 }
+
+// The check is on unless the user turns it off; an absent key must not be
+// indistinguishable from an explicit false.
+func TestUpdateCheckEnabled(t *testing.T) {
+	no, yes := false, true
+	cases := []struct {
+		name string
+		cfg  Config
+		env  string
+		want bool
+	}{
+		{"default", Default(), "", true},
+		{"absent key", Config{}, "", true},
+		{"explicit true", Config{UpdateCheck: &yes}, "", true},
+		{"explicit false", Config{UpdateCheck: &no}, "", false},
+		{"env overrides enabled config", Config{UpdateCheck: &yes}, "1", false},
+		{"env=0 does not disable", Config{UpdateCheck: &yes}, "0", true},
+		{"env with any value disables", Default(), "yes", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv(EnvNoUpdateCheck, c.env)
+			if got := c.cfg.UpdateCheckEnabled(); got != c.want {
+				t.Errorf("UpdateCheckEnabled = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestUpdateCheckParsedFromFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "actop"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "actop", "config.toml")
+	if err := os.WriteFile(path, []byte("updateCheck = false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	t.Setenv(EnvNoUpdateCheck, "")
+	if cfg.UpdateCheckEnabled() {
+		t.Error("updateCheck = false in the file must disable the check")
+	}
+}

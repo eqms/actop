@@ -1,6 +1,11 @@
 package ui
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -8,6 +13,7 @@ import (
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
+	"github.com/eqms/actop/update"
 )
 
 // key builds the press event for a printable character. In Bubble Tea v2 the
@@ -282,4 +288,235 @@ func TestTickSchedulesPoll(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("tick must schedule commands")
 	}
+}
+
+func TestUpdatesMsgStoresResult(t *testing.T) {
+	app, _ := testApp()
+	app.Update(updatesMsg{result: update.Result{
+		Components: []update.Component{
+			{Name: "container", Current: "1.1.0", Latest: "1.2.0", Hint: "/usr/local/bin/update-container.sh"},
+		},
+	}})
+	if app.updates.Count() != 1 {
+		t.Fatalf("updates.Count = %d, want 1", app.updates.Count())
+	}
+}
+
+// Opting out must prevent the command from existing at all -- not merely
+// from rendering its result.
+func TestCheckUpdatesCmdRespectsOptOut(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "1")
+	mock := &cli.MockClient{}
+	if cmd := checkUpdatesCmd(mock, config.Default(), "0.6.1", nil); cmd != nil {
+		t.Fatal("opt-out must yield a nil command")
+	}
+	if len(mock.CallList()) != 0 {
+		t.Errorf("opt-out must not touch the client, got %+v", mock.CallList())
+	}
+}
+
+// The command must ask the CLI for the installed container version and hand
+// both versions to the checker.
+func TestCheckUpdatesCmdReportsBothComponents(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/apple/container/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"1.2.0"}`)
+		case "/repos/eqms/actop/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"v0.7.0"}`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	mock := &cli.MockClient{VersionValue: "1.1.0"}
+	ck := &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+	cmd := checkUpdatesCmd(mock, config.Default(), "0.6.1", ck)
+	if cmd == nil {
+		t.Fatal("want a command")
+	}
+	msg, ok := cmd().(updatesMsg)
+	if !ok {
+		t.Fatalf("command returned %T, want updatesMsg", cmd())
+	}
+	if msg.result.Count() != 2 {
+		t.Errorf("Count = %d, want 2: %+v", msg.result.Count(), msg.result.Components)
+	}
+	var sawVersion bool
+	for _, c := range mock.CallList() {
+		if c.Method == "Version" {
+			sawVersion = true
+		}
+	}
+	if !sawVersion {
+		t.Error("the command must query the container CLI version")
+	}
+}
+
+// A container CLI that is missing or broken must not suppress the actop
+// check -- the two components are independent.
+func TestCheckUpdatesCmdSurvivesVersionError(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/eqms/actop/releases/latest" {
+			_, _ = fmt.Fprint(w, `{"tag_name":"0.7.0"}`)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+
+	mock := &cli.MockClient{VersionErr: errors.New("no such binary")}
+	ck := &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+	msg := checkUpdatesCmd(mock, config.Default(), "0.6.1", ck)().(updatesMsg)
+	if msg.result.Count() != 1 || msg.result.Components[0].Name != "actop" {
+		t.Errorf("want only actop reported, got %+v", msg.result.Components)
+	}
+}
+
+func withUpdates(app *App, n int) {
+	comps := make([]update.Component, 0, n)
+	names := []string{"container", "actop"}
+	for i := 0; i < n; i++ {
+		comps = append(comps, update.Component{
+			Name: names[i%len(names)], Current: "1.1.0", Latest: "1.2.0", Hint: "brew upgrade actop",
+		})
+	}
+	app.Update(updatesMsg{result: update.Result{Components: comps}})
+}
+
+func TestHeaderShowsUpdateBadge(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	if strings.Contains(app.header(), "update") {
+		t.Fatal("no result yet, but the header already advertises updates")
+	}
+	withUpdates(app, 2)
+	if !strings.Contains(app.header(), "2 updates") {
+		t.Errorf("header lacks the badge:\n%s", app.header())
+	}
+	app.updates = update.Result{}
+	withUpdates(app, 1)
+	if !strings.Contains(app.header(), "1 update") || strings.Contains(app.header(), "1 updates") {
+		t.Errorf("singular badge wrong:\n%s", app.header())
+	}
+}
+
+// The error banner owns the header while the API server is unreachable; an
+// update hint must not compete with it.
+func TestHeaderHidesBadgeWhileDisconnected(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	withUpdates(app, 2)
+	app.connOK = false
+	if strings.Contains(app.header(), "2 updates") {
+		t.Errorf("badge must be suppressed while disconnected:\n%s", app.header())
+	}
+}
+
+// On a narrow terminal the tab bar matters more than the hint.
+func TestHeaderDropsBadgeWhenTooNarrow(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 40, 40
+	withUpdates(app, 2)
+	if strings.Contains(app.header(), "2 updates") {
+		t.Errorf("badge must not push the tab bar out of a 40-column terminal:\n%s", app.header())
+	}
+}
+
+func TestSystemTabRendersUpdates(t *testing.T) {
+	app, _ := testApp()
+	app.width, app.height = 200, 40
+	app.Update(updatesMsg{result: update.Result{Components: []update.Component{
+		{Name: "container", Current: "1.1.0", Latest: "1.2.0", Hint: "/usr/local/bin/update-container.sh"},
+		{Name: "actop", Current: "0.6.1", Latest: "0.7.0", Hint: "brew upgrade actop"},
+	}}})
+	view := newSystemScreen(app).view(200, 40)
+	for _, want := range []string{
+		"UPDATES",
+		"container", "1.1.0 → 1.2.0 available", "/usr/local/bin/update-container.sh",
+		"actop", "0.6.1 → 0.7.0 available", "brew upgrade actop",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("system tab is missing %q:\n%s", want, view)
+		}
+	}
+}
+
+// Nothing outdated means the section is absent entirely, not an empty header.
+func TestSystemTabOmitsUpdatesWhenNone(t *testing.T) {
+	app, _ := testApp()
+	view := newSystemScreen(app).view(200, 40)
+	if strings.Contains(view, "UPDATES") {
+		t.Errorf("empty result must not render a section:\n%s", view)
+	}
+}
+
+// Every other test drives checkUpdatesCmd directly, bypassing App.Init()
+// entirely. This one verifies the wiring Init() actually performs: that
+// a.checker reaches checkUpdatesCmd inside the batch it returns, and that the
+// resulting updatesMsg, once fed back through App.Update, lands in
+// app.updates. Init() returns tea.Batch(...), which collapses to a single
+// command whose message is a tea.BatchMsg ([]tea.Cmd) -- each of those must
+// be invoked separately to obtain the individual messages.
+func TestInitWiresCheckerIntoUpdatesMsg(t *testing.T) {
+	t.Setenv(config.EnvNoUpdateCheck, "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/apple/container/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"1.2.0"}`)
+		case "/repos/eqms/actop/releases/latest":
+			_, _ = fmt.Fprint(w, `{"tag_name":"v0.7.0"}`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+
+	app, mock := testApp()
+	app.version = "0.6.1" // testApp() uses "test", which is not valid semver
+	mock.VersionValue = "1.1.0"
+	app.checker = &update.Checker{BaseURL: srv.URL, CacheDir: t.TempDir()}
+
+	initCmd := app.Init()
+	if initCmd == nil {
+		t.Fatal("Init() must return a command")
+	}
+	batch, ok := initCmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("Init() message = %T, want tea.BatchMsg", initCmd())
+	}
+
+	// Run every command in the batch concurrently -- one of them is
+	// tickCmd(a.interval()), which blocks for the poll interval and is of no
+	// interest here, so the result is collected via a channel rather than by
+	// running commands one at a time in order.
+	results := make(chan tea.Msg, len(batch))
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		go func(c tea.Cmd) { results <- c() }(c)
+	}
+
+	timeout := time.After(3 * time.Second)
+	for i := 0; i < len(batch); i++ {
+		select {
+		case msg := <-results:
+			um, ok := msg.(updatesMsg)
+			if !ok {
+				continue
+			}
+			app.Update(um)
+			if app.updates.Count() != 2 {
+				t.Fatalf("app.updates.Count() = %d, want 2 (checker reached through Init)", app.updates.Count())
+			}
+			return
+		case <-timeout:
+			t.Fatal("timed out waiting for updatesMsg out of Init()'s batch")
+		}
+	}
+	t.Fatal("Init() batch never produced an updatesMsg -- a.checker did not reach checkUpdatesCmd")
 }

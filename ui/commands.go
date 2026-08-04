@@ -12,6 +12,7 @@ import (
 
 	"github.com/eqms/actop/cli"
 	"github.com/eqms/actop/config"
+	"github.com/eqms/actop/update"
 )
 
 const (
@@ -197,5 +198,32 @@ func waitForLogCmd(ch chan tea.Msg) tea.Cmd {
 			return nil
 		}
 		return msg
+	}
+}
+
+// updateCheckTimeout bounds the whole release check. It runs off the update
+// loop, so a slow answer delays nothing visible.
+const updateCheckTimeout = 10 * time.Second
+
+// checkUpdatesCmd asks the CLI for the installed container version and the
+// checker for the latest releases. It returns nil when the user opted out,
+// so no HTTP client is constructed and the CLI is never touched.
+func checkUpdatesCmd(c cli.Client, cfg config.Config, version string, ck *update.Checker) tea.Cmd {
+	if !cfg.UpdateCheckEnabled() {
+		return nil
+	}
+	if ck == nil {
+		ck = &update.Checker{}
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), updateCheckTimeout)
+		defer cancel()
+		local := map[string]string{"actop": version}
+		// A missing or broken container CLI only drops that one component;
+		// Run skips entries it cannot parse.
+		if v, err := c.Version(ctx); err == nil {
+			local["container"] = v
+		}
+		return updatesMsg{result: ck.Run(ctx, local)}
 	}
 }
