@@ -16,7 +16,9 @@ var secretKeyPattern = regexp.MustCompile(`(?i)(secret|passwd|password|(^|_)pass
 
 // credentialValuePattern matches connection-string values that embed
 // credentials regardless of the key name, e.g. postgres://user:pass@host/db.
-var credentialValuePattern = regexp.MustCompile(`://[^/@\s]+:[^@\s]+@`)
+// The user part is optional: redis://:pass@host and amqp://:pass@host are the
+// usual shape for Redis, Celery and AMQP, and dropping them leaks the password.
+var credentialValuePattern = regexp.MustCompile(`://[^/@\s]*:[^@\s]+@`)
 
 // Env returns the value of a single KEY=VALUE pair, masked if the key looks
 // secret-like or the value embeds credentials.

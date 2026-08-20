@@ -26,6 +26,15 @@ func TestEnv(t *testing.T) {
 		{"monkey stays visible", "MONKEY_NAME", "bobo", "bobo"},
 		{"connection string value", "DATABASE_URL", "postgres://user:pass@db/app", Redacted},
 		{"plain url", "ENDPOINT", "https://example.com/x", "https://example.com/x"},
+		// Connection strings without a user part: the usual shape for Redis,
+		// Celery and AMQP. Key names here deliberately do not match
+		// secretKeyPattern, so only the value path can catch them.
+		{"redis url without user", "CACHE_HOST", "redis://:pw@host", Redacted},
+		{"amqp url without user", "BROKER", "amqp://:secret@rabbit:5672/vhost", Redacted},
+		{"mongodb srv url", "SERVICE_URL", "mongodb+srv://a:b@c/d", Redacted},
+		{"url with port stays visible", "SERVICE_URL", "http://host:8080/path", "http://host:8080/path"},
+		{"user without password stays visible", "SERVICE_URL", "http://user@host/p", "http://user@host/p"},
+		{"at sign in path stays visible", "ASSET_URL", "https://cdn.example.com/a@b.png", "https://cdn.example.com/a@b.png"},
 		{"user stays visible", "POSTGRES_USER", "ownerp", "ownerp"},
 		{"path", "PATH", "/usr/bin", "/usr/bin"},
 		{"empty value", "SECRET", "", ""},

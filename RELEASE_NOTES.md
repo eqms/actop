@@ -6,6 +6,21 @@
 
 ## Deutsche Release Notes
 
+### v0.7.1 (2026-08-20)
+
+- **Sicherheitskorrektur in der Redaction.** Verbindungszeichenketten ohne
+  Benutzernamen — `redis://:passwort@host`, `amqp://:passwort@host`, das
+  übliche Schema bei Redis, Celery und AMQP — wurden nicht erkannt und
+  standen im Klartext in der Detailansicht, sofern der Variablenname selbst
+  unverdächtig war (`CACHE_HOST`, `BROKER`).
+- Ursache war ein `+` statt `*` vor dem Doppelpunkt im Wertmuster, das einen
+  nicht-leeren Benutzernamen erzwang.
+- Testfälle für beide Richtungen ergänzt: erkannt werden jetzt auch Schemata
+  ohne Benutzernamen, unverändert sichtbar bleiben `http://host:8080/pfad`,
+  `http://benutzer@host/p` und URLs mit `@` im Pfad.
+
+---
+
 ### v0.7.0 (2026-08-04)
 
 - Update-Hinweis beim Start: actop prüft einmal täglich, ob eine neuere
@@ -146,6 +161,21 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.7.1 (2026-08-20)
+
+- **Security fix in redaction.** Connection strings without a user part —
+  `redis://:password@host`, `amqp://:password@host`, the usual shape for
+  Redis, Celery and AMQP — were not recognised and appeared in clear text in
+  the detail view whenever the variable name itself looked harmless
+  (`CACHE_HOST`, `BROKER`).
+- The cause was a `+` instead of a `*` before the colon in the value pattern,
+  which required a non-empty user name.
+- Test cases added for both directions: schemes without a user part are now
+  caught, while `http://host:8080/path`, `http://user@host/p` and URLs with an
+  `@` in the path stay visible.
+
+---
 
 ### v0.7.0 (2026-08-04)
 

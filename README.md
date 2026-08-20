@@ -81,8 +81,9 @@ updateCheck = true       # täglicher Versionscheck; ACTOP_NO_UPDATE_CHECK=1 dea
 ### Sicherheit
 
 - Env-Werte mit Credential-artigen Namen (`PASSWORD`, `TOKEN`, `API_KEY`, `AUTH`,
-  `JWT`, …) und Connection-Strings (`…://user:pass@…`) werden als `[REDACTED]`
-  maskiert — Apple Container liefert Env-Variablen sonst im Klartext.
+  `JWT`, …) und Connection-Strings (`…://user:pass@…`, auch ohne Benutzernamen
+  wie `redis://:pass@…`) werden als `[REDACTED]` maskiert — Apple Container
+  liefert Env-Variablen sonst im Klartext.
 - Subprozesse laufen ohne Shell-Interpreter (kein `sh -c` mit Nutzereingaben);
   die Exec-Shell ist whitelisted.
 - Container-Logs werden vor dem Rendern von ANSI-/OSC-Escape-Sequenzen und
@@ -182,8 +183,9 @@ updateCheck = true       # daily release check; ACTOP_NO_UPDATE_CHECK=1 turns it
 ### Security
 
 - Env values with credential-like names (`PASSWORD`, `TOKEN`, `API_KEY`, `AUTH`,
-  `JWT`, …) and connection strings (`…://user:pass@…`) are masked as
-  `[REDACTED]` — Apple Container otherwise exposes env variables in plaintext.
+  `JWT`, …) and connection strings (`…://user:pass@…`, including user-less
+  forms such as `redis://:pass@…`) are masked as `[REDACTED]` — Apple Container
+  otherwise exposes env variables in plaintext.
 - Subprocesses run without a shell interpreter (no `sh -c` with user input);
   the exec shell is whitelisted.
 - Container logs are stripped of ANSI/OSC escape sequences and control
