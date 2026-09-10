@@ -80,7 +80,7 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	case "G", "end":
 		g.cursor = len(g.rows()) - 1
 	case "s":
-		g.app.sortField = model.NextSortField(g.app.sortField)
+		return g, g.app.push(newSortMenu(g.app))
 	case "r":
 		g.app.sortReversed = !g.app.sortReversed
 		if !g.app.connOK {
@@ -117,7 +117,7 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		return g, g.app.push(newColumnsScreen(g.app))
 	case "S":
 		if c := g.selected(); c != nil && !c.Running() {
-			return g, g.app.push(confirmAction(g.app, "start", c.ID))
+			return g, actionCmd(g.app.client, "start", c.ID)
 		}
 	case "X":
 		if c := g.selected(); c != nil && c.Running() {
@@ -129,6 +129,10 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		}
 	case "D":
 		if c := g.selected(); c != nil {
+			// a running container cannot be deleted without stopping it
+			if c.Running() {
+				return g, g.app.push(confirmAction(g.app, "remove", c.ID))
+			}
 			return g, g.app.push(confirmAction(g.app, "delete", c.ID))
 		}
 	}
@@ -300,7 +304,11 @@ func pad(s string, w int) string {
 // must not obscure which container is about to be destroyed -- while the
 // command still targets the real one.
 func confirmAction(app *App, action, id string) *confirmScreen {
-	q := fmt.Sprintf("%s container %q?", action, safe(id))
+	verb := action
+	if action == "remove" {
+		verb = "stop and delete"
+	}
+	q := fmt.Sprintf("%s container %q?", verb, safe(id))
 	return newConfirmScreen(q, actionCmd(app.client, action, id))
 }
 

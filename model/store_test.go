@@ -96,18 +96,6 @@ func TestWebURL(t *testing.T) {
 	}
 }
 
-func TestNextSortField(t *testing.T) {
-	if NextSortField(SortName) != SortState {
-		t.Error("cycle name->state broken")
-	}
-	if NextSortField(SortUptime) != SortName {
-		t.Error("cycle wraparound broken")
-	}
-	if NextSortField("bogus") != SortName {
-		t.Error("unknown field should reset to name")
-	}
-}
-
 func ids(cs []*Container) []string {
 	out := make([]string, len(cs))
 	for i, c := range cs {

@@ -85,20 +85,36 @@ func imageDeleteCmd(c cli.Client, ref string) tea.Cmd {
 	}
 }
 
+// actionCmd runs a container lifecycle action. Apple Container has neither a
+// restart command nor a delete for running containers without --force, so
+// "restart" and "remove" are two CLI calls each; the second only runs when
+// the stop succeeded. Every call gets its own timeout, since a graceful stop
+// alone can use most of one.
 func actionCmd(c cli.Client, action, id string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
-		defer cancel()
+		run := func(f func(context.Context, string) error) error {
+			ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+			defer cancel()
+			return f(ctx, id)
+		}
 		var err error
 		switch action {
 		case "start":
-			err = c.Start(ctx, id)
+			err = run(c.Start)
 		case "stop":
-			err = c.Stop(ctx, id)
+			err = run(c.Stop)
 		case "kill":
-			err = c.Kill(ctx, id)
+			err = run(c.Kill)
 		case "delete":
-			err = c.Delete(ctx, id)
+			err = run(c.Delete)
+		case "restart":
+			if err = run(c.Stop); err == nil {
+				err = run(c.Start)
+			}
+		case "remove":
+			if err = run(c.Stop); err == nil {
+				err = run(c.Delete)
+			}
 		}
 		return actionDoneMsg{action: action, id: id, err: err}
 	}

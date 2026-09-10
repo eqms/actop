@@ -9,13 +9,13 @@ import (
 	"github.com/eqms/actop/model"
 )
 
-// menuItem is one entry in an action menu. Disabled entries stay visible
-// but dimmed (ctop keeps the full list so the layout never shifts) and are
-// skipped by the cursor.
+// menuItem is one entry in an action menu. key is its hotkey inside the
+// menu, shown in front of the label as ctop does ("[l] log view"); an empty
+// key makes the entry reachable by cursor only.
 type menuItem struct {
-	label    string
-	disabled bool
-	build    func(m *menuScreen) (screen, tea.Cmd)
+	key   string
+	label string
+	build func(m *menuScreen) (screen, tea.Cmd)
 }
 
 // menuScreen is the ctop-style action menu, generic over its target: the
@@ -27,53 +27,56 @@ type menuScreen struct {
 	cursor int
 }
 
-// newMenuScreen places the cursor on the first enabled item.
 func newMenuScreen(app *App, title string, items []menuItem) *menuScreen {
-	m := &menuScreen{app: app, title: title, items: items}
-	for i, it := range items {
-		if !it.disabled {
-			m.cursor = i
-			break
-		}
-	}
-	return m
+	return &menuScreen{app: app, title: title, items: items}
 }
 
 // cancelItem closes the menu; ctop lists it as the last entry.
 func cancelItem() menuItem {
-	return menuItem{label: "Cancel", build: func(m *menuScreen) (screen, tea.Cmd) {
+	return menuItem{key: "c", label: "cancel", build: func(m *menuScreen) (screen, tea.Cmd) {
 		return nil, nil
 	}}
 }
 
-// newContainerMenu builds the fixed container action list. Entries that do
-// not apply to the container's current state are disabled, not hidden.
+// newContainerMenu builds ctop's container menu: only the actions that apply
+// to the container's current state are listed, each with ctop's hotkey.
+// Start and restart run at once; everything that ends or destroys a running
+// process still asks first.
 func newContainerMenu(app *App, c *model.Container) *menuScreen {
 	id := c.ID
-	url := c.WebURL()
-	running := c.Running()
 	items := []menuItem{
-		{label: "Details", build: func(m *menuScreen) (screen, tea.Cmd) {
+		{key: "o", label: "single view", build: func(m *menuScreen) (screen, tea.Cmd) {
 			return newDetailScreen(m.app, id), nil
 		}},
-		{label: "Logs", build: func(m *menuScreen) (screen, tea.Cmd) {
+		{key: "l", label: "log view", build: func(m *menuScreen) (screen, tea.Cmd) {
 			// starts streaming itself: menu selection replaces the menu via
 			// routeToTop instead of App.push (which normally calls start)
 			l := newLogsScreen(m.app, id)
 			return l, l.start()
 		}},
-		{label: "Shell", disabled: !running, build: func(m *menuScreen) (screen, tea.Cmd) {
-			return nil, execShellCmd(m.app.client, m.app.cfg, id)
-		}},
-		{label: "Open URL", disabled: !running || url == "", build: func(m *menuScreen) (screen, tea.Cmd) {
-			return nil, openURLCmd(url)
-		}},
-		{label: "Start", disabled: running, build: confirmItem("start", id)},
-		{label: "Stop", disabled: !running, build: confirmItem("stop", id)},
-		{label: "Kill", disabled: !running, build: confirmItem("kill", id)},
-		{label: "Delete", build: confirmItem("delete", id)},
-		cancelItem(),
 	}
+	if c.Running() {
+		items = append(items,
+			menuItem{key: "s", label: "stop", build: confirmItem("stop", id)},
+			menuItem{key: "r", label: "restart", build: runItem("restart", id)},
+			menuItem{key: "X", label: "stop + remove", build: confirmItem("remove", id)},
+			menuItem{key: "e", label: "exec shell", build: func(m *menuScreen) (screen, tea.Cmd) {
+				return nil, execShellCmd(m.app.client, m.app.cfg, id)
+			}},
+		)
+		if url := c.WebURL(); url != "" {
+			items = append(items, menuItem{key: "w", label: "open in browser", build: func(m *menuScreen) (screen, tea.Cmd) {
+				return nil, openURLCmd(url)
+			}})
+		}
+		items = append(items, menuItem{key: "K", label: "kill", build: confirmItem("kill", id)})
+	} else {
+		items = append(items,
+			menuItem{key: "s", label: "start", build: runItem("start", id)},
+			menuItem{key: "R", label: "remove", build: confirmItem("delete", id)},
+		)
+	}
+	items = append(items, cancelItem())
 	return newMenuScreen(app, c.ID, items)
 }
 
@@ -83,10 +86,17 @@ func confirmItem(action, id string) func(*menuScreen) (screen, tea.Cmd) {
 	}
 }
 
+// runItem closes the menu and runs the action without a confirmation.
+func runItem(action, id string) func(*menuScreen) (screen, tea.Cmd) {
+	return func(m *menuScreen) (screen, tea.Cmd) {
+		return nil, actionCmd(m.app.client, action, id)
+	}
+}
+
 // newVolumeMenu and newImageMenu give the other tabs the same enter-menu.
 func newVolumeMenu(app *App, name string) *menuScreen {
 	items := []menuItem{
-		{label: "Delete", build: func(m *menuScreen) (screen, tea.Cmd) {
+		{key: "R", label: "remove", build: func(m *menuScreen) (screen, tea.Cmd) {
 			return volumeDeleteConfirm(m.app, name), nil
 		}},
 		cancelItem(),
@@ -96,7 +106,7 @@ func newVolumeMenu(app *App, name string) *menuScreen {
 
 func newImageMenu(app *App, ref string) *menuScreen {
 	items := []menuItem{
-		{label: "Delete", build: func(m *menuScreen) (screen, tea.Cmd) {
+		{key: "R", label: "remove", build: func(m *menuScreen) (screen, tea.Cmd) {
 			return imageDeleteConfirm(m.app, ref), nil
 		}},
 		cancelItem(),
@@ -104,12 +114,31 @@ func newImageMenu(app *App, ref string) *menuScreen {
 	return newMenuScreen(app, ref, items)
 }
 
+// newSortMenu is ctop's sort selection: every field listed, the cursor on the
+// active one, enter picks. The direction stays on r in the grid.
+func newSortMenu(app *App) *menuScreen {
+	items := make([]menuItem, 0, len(model.SortFields))
+	cursor := 0
+	for i, f := range model.SortFields {
+		if f == app.sortField {
+			cursor = i
+		}
+		items = append(items, menuItem{label: string(f), build: func(m *menuScreen) (screen, tea.Cmd) {
+			m.app.sortField = f
+			return nil, nil
+		}})
+	}
+	m := newMenuScreen(app, "sort by", items)
+	m.cursor = cursor
+	return m
+}
+
 func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
 	}
-	switch key.String() {
+	switch k := key.String(); k {
 	case "esc", "q":
 		return nil, nil
 	case "j", "down":
@@ -117,41 +146,40 @@ func (m *menuScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	case "k", "up":
 		m.move(-1)
 	case "enter":
-		// cursor can only rest on enabled items; guard stays for safety
-		if it := m.items[m.cursor]; !it.disabled {
-			return it.build(m)
+		return m.items[m.cursor].build(m)
+	default:
+		for _, it := range m.items {
+			if it.key != "" && it.key == k {
+				return it.build(m)
+			}
 		}
 	}
 	return m, nil
 }
 
-// move shifts the cursor by delta, skipping disabled entries and clamping
-// at both ends.
+// move shifts the cursor by delta, clamping at both ends.
 func (m *menuScreen) move(delta int) {
-	i := m.cursor + delta
-	for i >= 0 && i < len(m.items) && m.items[i].disabled {
-		i += delta
-	}
-	if i >= 0 && i < len(m.items) {
+	if i := m.cursor + delta; i >= 0 && i < len(m.items) {
 		m.cursor = i
 	}
 }
 
-// menuWidth is the label column width inside the panel.
-const menuWidth = 16
+// menuWidth is the entry column width inside the panel, hotkey included.
+const menuWidth = 20
 
 func (m *menuScreen) view(width, height int) string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render(safe(m.title)) + "\n\n")
 	for i, it := range m.items {
-		label := pad(it.label, menuWidth)
-		switch {
-		case i == m.cursor:
-			b.WriteString("▸ " + styleSelected.Render(label) + "\n")
-		case it.disabled:
-			b.WriteString("  " + styleDim.Render(label) + "\n")
-		default:
-			b.WriteString("  " + label + "\n")
+		entry := it.label
+		if it.key != "" {
+			entry = "[" + it.key + "] " + it.label
+		}
+		entry = pad(entry, menuWidth)
+		if i == m.cursor {
+			b.WriteString("▸ " + styleSelected.Render(entry) + "\n")
+		} else {
+			b.WriteString("  " + entry + "\n")
 		}
 	}
 	panel := styleMenuPanel.Render(b.String())

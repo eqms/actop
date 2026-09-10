@@ -15,18 +15,8 @@ const (
 	SortUptime SortField = "uptime"
 )
 
-// SortCycle is the order the sort key cycles through in the UI.
-var SortCycle = []SortField{SortName, SortState, SortCPU, SortMem, SortNet, SortIO, SortPIDs, SortUptime}
-
-// NextSortField returns the field following f in the cycle.
-func NextSortField(f SortField) SortField {
-	for i, s := range SortCycle {
-		if s == f {
-			return SortCycle[(i+1)%len(SortCycle)]
-		}
-	}
-	return SortName
-}
+// SortFields is every sort field, in the order the sort menu lists them.
+var SortFields = []SortField{SortName, SortState, SortCPU, SortMem, SortNet, SortIO, SortPIDs, SortUptime}
 
 func sortContainers(cs []*Container, field SortField, reversed bool) {
 	less := lessFn(field)
