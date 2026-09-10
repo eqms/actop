@@ -132,64 +132,36 @@ jobs:
     steps:
       - name: Update formula in tap
         env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          # A secret pasted with a trailing newline passes a plain -z check and
-          # then fails deep inside git with an unrelated-looking message. Strip
-          # whitespace first, so a stray newline is tolerated and a truly empty
-          # secret is reported as what it is. This bit the v0.5.0 release.
-          TAP_TOKEN="$(printf '%s' "${TAP_TOKEN}" | tr -d '[:space:]')"
-          if [ -z "${TAP_TOKEN}" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN is empty or whitespace-only — formula not updated"
+          # The tap is written with an SSH deploy key that can push to
+          # eqms/homebrew-tap and nothing else. It replaced HOMEBREW_TAP_TOKEN,
+          # a personal access token that was empty, mistyped or expired for
+          # every release from v0.5.0 to v0.7.1 -- each formula had to be
+          # patched into the tap by hand. A deploy key does not expire.
+          if [ -z "$(printf '%s' "${TAP_DEPLOY_KEY}" | tr -d '[:space:]')" ]; then
+            echo "::error::HOMEBREW_TAP_DEPLOY_KEY is empty or whitespace-only — formula not updated"
             exit 1
           fi
-          # Check the token before doing any work. Without this the job clones,
-          # edits and commits, and only the push fails -- with "Invalid username
-          # or token", which says nothing about which of the two is wrong.
-          #
-          # Branch on the HTTP status, never on curl's exit code: `curl -f`
-          # collapses every failure into one, and the statuses mean genuinely
-          # different things here. A fine-grained PAT reports a repository it
-          # was not granted as 404, not 403 -- so "token has no access to the
-          # tap" and "value is not a token at all" produced the identical
-          # error message. That cost the v0.7.0 release a round of guessing.
-          REPO_JSON="${RUNNER_TEMP}/tap-repo.json"
-          HTTP=$(curl -sS -o "${REPO_JSON}" -w '%{http_code}' \
-                   -H "Authorization: Bearer ${TAP_TOKEN}" \
-                   -H "Accept: application/vnd.github+json" \
-                   "https://api.github.com/repos/eqms/homebrew-tap" || echo 000)
-          case "${HTTP}" in
-            200) ;;
-            401)
-              echo "::error::HOMEBREW_TAP_TOKEN is not a valid token (HTTP 401) -- mistyped, expired or revoked. Classic PATs start with ghp_, fine-grained ones with github_pat_."
-              exit 1 ;;
-            403)
-              echo "::error::HOMEBREW_TAP_TOKEN was refused (HTTP 403). The token is real but not permitted to read eqms/homebrew-tap -- check SSO authorisation and expiry."
-              exit 1 ;;
-            404)
-              echo "::error::HOMEBREW_TAP_TOKEN cannot see eqms/homebrew-tap (HTTP 404). A fine-grained PAT reports repositories it was not granted as non-existent, so this almost certainly means the tap is missing from the token's 'Repository access' list -- the token itself is fine."
-              exit 1 ;;
-            000)
-              echo "::error::Could not reach the GitHub API to verify HOMEBREW_TAP_TOKEN."
-              exit 1 ;;
-            *)
-              echo "::error::Unexpected HTTP ${HTTP} while verifying HOMEBREW_TAP_TOKEN against eqms/homebrew-tap."
-              exit 1 ;;
-          esac
-          if [ "$(jq -r '.permissions.push // false' "${REPO_JSON}")" != "true" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN can read eqms/homebrew-tap but not write to it. A classic PAT needs the 'repo' scope; a fine-grained one needs Contents: Read and write on that repository."
-            exit 1
-          fi
+          KEY="${RUNNER_TEMP}/tap_deploy_key"
+          HOSTS="${RUNNER_TEMP}/known_hosts"
+          # printf restores the trailing newline OpenSSH insists on; a key
+          # pasted without one fails with an opaque "error in libcrypto".
+          printf '%s\n' "${TAP_DEPLOY_KEY}" > "${KEY}"
+          chmod 600 "${KEY}"
+          # GitHub's published ed25519 host key (api.github.com/meta), pinned
+          # instead of ssh-keyscan, which trusts whoever answers first.
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "${HOSTS}"
+          export GIT_SSH_COMMAND="ssh -i ${KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${HOSTS} -o StrictHostKeyChecking=yes"
           URL="https://github.com/eqms/actop/archive/refs/tags/${TAG}.tar.gz"
           SHA=$(curl -fsSL "${URL}" | sha256sum | cut -d' ' -f1)
-          # The tap is public, so the clone needs no credentials at all --
-          # and an http.extraheader that GitHub rejects turns an anonymous
-          # read into a 401, which is what broke the v0.6.0 run. Only the
-          # push authenticates, via an explicit remote URL that is never
-          # written to .git/config.
-          git clone https://github.com/eqms/homebrew-tap.git tap
+          # Cloning over SSH authenticates the key before anything is edited:
+          # a revoked or wrong key fails here with "Permission denied
+          # (publickey)"; a key without write access fails at the push with
+          # "marked as read only". Both messages name the actual problem.
+          git clone git@github.com:eqms/homebrew-tap.git tap
           cd tap
           # anchored checks: fail loudly if the formula diverged
           grep -q '^  url "' Formula/actop.rb
@@ -204,5 +176,5 @@ jobs:
           else
             git add Formula/actop.rb
             git commit -m "[CHG] actop ${TAG}: update formula"
-            git push "https://x-access-token:${TAP_TOKEN}@github.com/eqms/homebrew-tap.git" HEAD:main
+            git push origin HEAD:main
           fi
