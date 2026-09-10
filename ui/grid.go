@@ -98,7 +98,13 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		if c := g.selected(); c != nil {
 			return g, g.app.push(newContainerMenu(g.app, c))
 		}
-	case "l":
+	// o, →, ←, w, S and H follow ctop's grid keys; X and K are actop extras
+	// that ctop leaves unbound.
+	case "o", "right":
+		if c := g.selected(); c != nil {
+			return g, g.app.push(newDetailScreen(g.app, c.ID))
+		}
+	case "l", "left":
 		if c := g.selected(); c != nil {
 			return g, g.app.push(newLogsScreen(g.app, c.ID))
 		}
@@ -106,7 +112,7 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 		if c := g.selected(); c != nil && c.Running() {
 			return g, execShellCmd(g.app.client, g.app.cfg, c.ID)
 		}
-	case "o":
+	case "w":
 		if c := g.selected(); c != nil && c.Running() {
 			if url := c.WebURL(); url != "" {
 				return g, openURLCmd(url)
@@ -116,9 +122,7 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	case "c":
 		return g, g.app.push(newColumnsScreen(g.app))
 	case "S":
-		if c := g.selected(); c != nil && !c.Running() {
-			return g, actionCmd(g.app.client, "start", c.ID)
-		}
+		g.app.saveSettings()
 	case "X":
 		if c := g.selected(); c != nil && c.Running() {
 			return g, g.app.push(confirmAction(g.app, "stop", c.ID))
@@ -126,14 +130,6 @@ func (g *gridScreen) update(msg tea.Msg) (screen, tea.Cmd) {
 	case "K":
 		if c := g.selected(); c != nil && c.Running() {
 			return g, g.app.push(confirmAction(g.app, "kill", c.ID))
-		}
-	case "D":
-		if c := g.selected(); c != nil {
-			// a running container cannot be deleted without stopping it
-			if c.Running() {
-				return g, g.app.push(confirmAction(g.app, "remove", c.ID))
-			}
-			return g, g.app.push(confirmAction(g.app, "delete", c.ID))
 		}
 	}
 	return g, nil

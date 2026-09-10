@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -189,5 +190,65 @@ func TestUpdateCheckParsedFromFile(t *testing.T) {
 	t.Setenv(EnvNoUpdateCheck, "")
 	if cfg.UpdateCheckEnabled() {
 		t.Error("updateCheck = false in the file must disable the check")
+	}
+}
+
+// S in the grid saves through Save; what it writes must load back unchanged,
+// including the settings the grid does not touch.
+func TestSaveRoundTrip(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	off := false
+	want := Config{PollIntervalMs: 1500, SortField: "cpu", SortReversed: true,
+		Shell: "fish", Columns: []string{"name", "cpu"}, UpdateCheck: &off}
+	path, err := Save(want)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if path != Path() {
+		t.Errorf("Save wrote %s, want %s", path, Path())
+	}
+	got, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("round trip = %+v, want %+v", got, want)
+	}
+}
+
+// An absent updateCheck means "enabled"; saving must not turn it into an
+// explicit false.
+func TestSaveKeepsUpdateCheckAbsent(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv(EnvNoUpdateCheck, "")
+	path, err := Save(Default())
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	body, _ := os.ReadFile(path) // #nosec G304 -- path is Save's own result inside t.TempDir()
+	if strings.Contains(string(body), "updateCheck") {
+		t.Errorf("unset updateCheck was written:\n%s", body)
+	}
+	got, _ := Load()
+	if !got.UpdateCheckEnabled() {
+		t.Error("update check disabled by a save")
+	}
+}
+
+func TestSaveIsPrivate(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	path, err := Save(Default())
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := fi.Mode().Perm(); perm != 0o600 {
+		t.Errorf("config mode = %o, want 600", perm)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(path)); len(entries) != 1 {
+		t.Errorf("config dir holds %d entries, want only config.toml (no temp leftovers)", len(entries))
 	}
 }

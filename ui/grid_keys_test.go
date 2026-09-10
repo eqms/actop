@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eqms/actop/cli"
+	"github.com/eqms/actop/config"
 	"github.com/eqms/actop/model"
 )
 
@@ -20,54 +21,102 @@ func appWith(state string) (*App, *cli.MockClient) {
 	return app, mock
 }
 
-func TestGridStartRunsWithoutConfirm(t *testing.T) {
-	app, mock := appWith("stopped")
-	_, cmd := app.Update(key('S'))
-	if _, ok := app.top().(*gridScreen); !ok {
-		t.Fatalf("S pushed %T, want no dialog", app.top())
-	}
-	if cmd == nil {
-		t.Fatal("S returned no command")
-	}
-	cmd()
-	if got := calls(mock); !slices.Equal(got, []string{"Start db"}) {
-		t.Errorf("calls = %v, want [Start db]", got)
+// The grid keys follow ctop's grid.go: o and → open the single view, ← the
+// logs, w the browser, S saves the settings, H toggles the header.
+
+func TestGridOOpensSingleView(t *testing.T) {
+	app, _ := appWith("running")
+	app.Update(key('o'))
+	if _, ok := app.top().(*detailScreen); !ok {
+		t.Errorf("o pushed %T, want *detailScreen", app.top())
 	}
 }
 
-// Apple Container refuses to delete a running container without --force.
-// D on a running one therefore stops it first, and says so in the prompt.
-func TestGridDeleteRunningStopsFirst(t *testing.T) {
+func TestGridRightOpensSingleView(t *testing.T) {
+	app, _ := appWith("stopped")
+	app.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if _, ok := app.top().(*detailScreen); !ok {
+		t.Errorf("→ pushed %T, want *detailScreen", app.top())
+	}
+}
+
+func TestGridLeftOpensLogs(t *testing.T) {
+	app, _ := appWith("running")
+	app.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	l, ok := app.top().(*logsScreen)
+	if !ok {
+		t.Fatalf("← pushed %T, want *logsScreen", app.top())
+	}
+	l.close()
+}
+
+func TestGridWOpensBrowserOnlyWithURL(t *testing.T) {
+	app, _ := appWith("running")
+	// No port and no IP: nothing to open, and the user is told so. A command
+	// is never run here -- it would launch open(1).
+	if _, cmd := app.Update(key('w')); cmd != nil {
+		t.Error("w without a URL must not return a command")
+	}
+	if !strings.Contains(app.statusMsg, "no published port") {
+		t.Errorf("statusMsg = %q, want a hint", app.statusMsg)
+	}
+}
+
+func TestGridSSavesSettings(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	app, mock := appWith("stopped")
+	app.sortField = model.SortCPU
+	app.sortReversed = true
+	app.allContainers = false
+	app.Update(key('S'))
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.SortField != "cpu" || !cfg.SortReversed || cfg.AllContainers {
+		t.Errorf("saved = %+v, want cpu, reversed, stopped hidden", cfg)
+	}
+	if !strings.Contains(app.statusMsg, "wrote config to") {
+		t.Errorf("statusMsg = %q, want the path written", app.statusMsg)
+	}
+	if len(mock.CallList()) != 0 {
+		t.Errorf("S must no longer start a container: %v", calls(mock))
+	}
+}
+
+// ctop's D dumps state into its debug log, which actop does not have; the
+// key is simply free now. Deleting happens through the enter menu.
+func TestGridDDoesNothing(t *testing.T) {
 	app, mock := appWith("running")
-	app.Update(key('D'))
-	c, ok := app.top().(*confirmScreen)
-	if !ok {
-		t.Fatalf("D pushed %T, want confirm", app.top())
+	_, cmd := app.Update(key('D'))
+	if _, ok := app.top().(*gridScreen); !ok || cmd != nil {
+		t.Errorf("D = (%T, cmd %v), want grid unchanged", app.top(), cmd)
 	}
-	if !strings.Contains(c.question, "stop and delete container") {
-		t.Errorf("question = %q, want stop and delete", c.question)
-	}
-	_, cmd := app.Update(key('y'))
-	cmd()
-	if got := calls(mock); !slices.Equal(got, []string{"Stop db", "Delete db"}) {
-		t.Errorf("calls = %v, want [Stop db Delete db]", got)
+	if len(mock.CallList()) != 0 {
+		t.Errorf("no client calls expected, got %v", calls(mock))
 	}
 }
 
-func TestGridDeleteStoppedDeletesOnly(t *testing.T) {
-	app, mock := appWith("stopped")
-	app.Update(key('D'))
-	c, ok := app.top().(*confirmScreen)
-	if !ok {
-		t.Fatalf("D pushed %T, want confirm", app.top())
+func TestHTogglesHeader(t *testing.T) {
+	app, _ := appWith("running")
+	app.Update(key('H'))
+	if strings.Contains(app.Body(), "actop v") {
+		t.Error("header still shown after H")
 	}
-	if !strings.Contains(c.question, "delete container") || strings.Contains(c.question, "stop") {
-		t.Errorf("question = %q, want a plain delete", c.question)
+	app.Update(key('H'))
+	if !strings.Contains(app.Body(), "actop v") {
+		t.Error("header not back after second H")
 	}
-	_, cmd := app.Update(key('y'))
-	cmd()
-	if got := calls(mock); !slices.Equal(got, []string{"Delete db"}) {
-		t.Errorf("calls = %v, want [Delete db]", got)
+}
+
+// The connection banner is not decoration: it says the data is stale.
+func TestHiddenHeaderKeepsConnectionBanner(t *testing.T) {
+	app, _ := appWith("running")
+	app.Update(key('H'))
+	app.Update(listResultMsg{err: cli.ErrAPIServerDown})
+	if !strings.Contains(app.Body(), "API server not reachable") {
+		t.Error("banner hidden together with the header")
 	}
 }
 

@@ -69,6 +69,35 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Save writes cfg to Path(), as ctop's S key does, and returns the path.
+// The file is replaced atomically (temp file + rename) so a failed write
+// never leaves a half-written config; comments in the old file are lost.
+// A nil UpdateCheck stays absent rather than becoming false.
+func Save(cfg Config) (string, error) {
+	path := Path()
+	if path == "" {
+		return "", fmt.Errorf("no config location: neither XDG_CONFIG_HOME nor a home directory is set")
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return path, err
+	}
+	tmp, err := os.CreateTemp(dir, ".config-*.toml")
+	if err != nil {
+		return path, err
+	}
+	defer func() { _ = os.Remove(tmp.Name()) }() // no-op after the rename
+	if err := toml.NewEncoder(tmp).Encode(cfg); err != nil {
+		_ = tmp.Close()
+		return path, fmt.Errorf("encode config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return path, err
+	}
+	// CreateTemp already uses 0600; the rename keeps it.
+	return path, os.Rename(tmp.Name(), path)
+}
+
 // EnvNoUpdateCheck disables the release check for a single run, without
 // touching the config file.
 const EnvNoUpdateCheck = "ACTOP_NO_UPDATE_CHECK"

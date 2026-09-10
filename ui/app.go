@@ -48,6 +48,9 @@ type App struct {
 	sortField     model.SortField
 	sortReversed  bool
 	allContainers bool
+	// hideHeader is ctop's H: the version/tab/info line goes, the
+	// connection banner and status messages stay. Session only.
+	hideHeader bool
 
 	connOK    bool
 	lastOK    time.Time
@@ -233,6 +236,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.switchTab((a.activeTab + 1) % len(a.tabs))
 			case "1", "2", "3", "4":
 				return a, a.switchTab(int(m.String()[0] - '1'))
+			case "H":
+				a.hideHeader = !a.hideHeader
+				return a, nil
 			}
 		}
 		return a, a.routeToTop(msg)
@@ -309,6 +315,24 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, a.routeToTop(msg)
 }
 
+// saveSettings is ctop's S: the grid settings of this session go into
+// config.toml; poll interval, shell and update check keep their loaded
+// values.
+func (a *App) saveSettings() {
+	cfg := a.cfg
+	cfg.SortField = string(a.sortField)
+	cfg.SortReversed = a.sortReversed
+	cfg.AllContainers = a.allContainers
+	cfg.Columns = append([]string(nil), a.columns...)
+	path, err := config.Save(cfg)
+	if err != nil {
+		a.statusMsg = "save config: " + err.Error()
+		return
+	}
+	a.cfg = cfg
+	a.statusMsg = "wrote config to " + path
+}
+
 // closeAll releases resources of stacked screens (log subprocesses).
 func (a *App) closeAll() {
 	for _, s := range a.stack {
@@ -347,7 +371,7 @@ func (a *App) header() string {
 		if !a.lastOK.IsZero() {
 			stale = styleDim.Render(fmt.Sprintf("  showing data from %s", a.lastOK.Format("15:04:05")))
 		}
-		return line + "\n" + styleErr.Render(banner) + stale
+		return a.joinHeader(line, styleErr.Render(banner)+stale)
 	}
 
 	// The badge is the least important thing on this line: it yields to the
@@ -362,9 +386,23 @@ func (a *App) header() string {
 	if a.statusMsg != "" {
 		// carries container IDs and CLI stderr; sanitized here rather than at
 		// every assignment so no future call site can bypass it
-		return line + "\n" + styleWarn.Render(safe(a.statusMsg))
+		return a.joinHeader(line, styleWarn.Render(safe(a.statusMsg)))
 	}
-	return line
+	return a.joinHeader(line, "")
+}
+
+// joinHeader puts the info line above an optional banner or status line.
+// With the header hidden only the latter remains: it reports a lost
+// connection or the outcome of an action, which H must not swallow.
+func (a *App) joinHeader(line, extra string) string {
+	switch {
+	case a.hideHeader:
+		return extra
+	case extra == "":
+		return line
+	default:
+		return line + "\n" + extra
+	}
 }
 
 // updateBadge is the compact header hint; the system tab carries the detail.
@@ -390,6 +428,9 @@ func (a *App) View() tea.View {
 // on the content without unwrapping a tea.View.
 func (a *App) Body() string {
 	head := a.header()
+	if head == "" {
+		return a.top().view(a.width, a.height-1)
+	}
 	body := a.top().view(a.width, a.height-strings.Count(head, "\n")-2)
 	return head + "\n" + body
 }
