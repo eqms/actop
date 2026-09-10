@@ -50,19 +50,51 @@ make build
 | Taste | Aktion |
 |---|---|
 | `tab` / `1`–`4` | Tabs: Containers / Volumes / Images / System |
-| `enter` | Aktionsmenü (ctop-Stil, feste Liste) — auch in Volumes/Images |
+| `enter` | Aktionsmenü wie in ctop: nur die Aktionen, die im aktuellen Zustand gehen, jede mit ihrer Taste (`[l] log view`, `[s] stop`, …) — auch in Volumes/Images |
 | `l` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
 | `o` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
 | `c` | Grid-Spalten konfigurieren (Session; persistent via config.toml) |
-| `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (mit Rückfrage) |
-| `s` / `r` | Sortierfeld wechseln / Richtung umkehren |
+| `S` | Start (ohne Rückfrage) |
+| `X` / `K` | Stop / Kill (mit Rückfrage) |
+| `D` | Delete (mit Rückfrage; ein laufender Container wird vorher gestoppt) |
+| `s` / `r` | Sortierfeld aus einer Liste wählen / Richtung umkehren |
 | `f` | Filter (Name/Image) |
 | `a` | Gestoppte Container ein-/ausblenden |
 | `h` `?` | Hilfe |
 | `q` | Beenden bzw. Ansicht schließen |
 
 `r` startet bei getrennter Verbindung außerdem einen sofortigen Reconnect.
+
+Im Aktionsmenü eines laufenden Containers stehen `[o] single view`,
+`[l] log view`, `[s] stop`, `[r] restart`, `[X] stop + remove`,
+`[e] exec shell`, `[w] open in browser` (nur mit Port oder IP), `[K] kill`
+und `[c] cancel`; bei einem gestoppten `[o]`, `[l]`, `[s] start`,
+`[R] remove` und `[c]`. Ein Tastendruck löst die Aktion aus, `j`/`k` und
+`enter` gehen weiterhin. Start und Restart laufen sofort, Stop, Kill und
+Remove fragen nach.
+
+### Apple Container aktualisieren
+
+```bash
+actop update-container        # fragt, bevor laufende Container gestoppt werden
+actop update-container -y     # ohne Rückfrage
+```
+
+Apples Updater `/usr/local/bin/update-container.sh` läuft nur bei gestopptem
+Container-Dienst, und das Stoppen hält alle Container an. `actop
+update-container` erledigt die Schritte am Stück: Es prüft auf GitHub, ob
+eine neuere Version vorliegt (sonst endet es, ohne etwas anzuhalten), merkt
+sich die laufenden Container, stoppt den Dienst, ruft Apples Updater auf (die
+sudo-Passwortabfrage erscheint wie gewohnt), startet den Dienst wieder und
+danach die zuvor laufenden Container. Zum Schluss steht ein Statusbericht:
+Version vorher und nachher, Zustand des Dienstes und je Container
+„restarted“, „start failed“ oder „no longer exists“ — letzteres für Container,
+die mit `--rm` liefen und von Apple beim Stoppen gelöscht werden.
+
+Schlägt der Updater fehl oder wird er mit Ctrl+C abgebrochen, startet actop
+Dienst und Container trotzdem wieder. Der Exit-Code ist `0`, wenn alles
+zurück ist, sonst `1`.
 
 ### Konfiguration
 
@@ -92,6 +124,13 @@ updateCheck = true       # täglicher Versionscheck; ACTOP_NO_UPDATE_CHECK=1 dea
 - Der Update-Check fragt einmal täglich `api.github.com` nach den neuesten
   Releases — ohne Token, ohne Telemetrie, und nur nach Versionsnummern.
   Abschaltbar per `updateCheck = false` oder `ACTOP_NO_UPDATE_CHECK=1`.
+
+### Neu in v0.8
+
+- **Aktionsmenü wie in ctop**: Tasten stehen im Menü und lösen direkt aus, nur passende Aktionen werden angeboten, neu sind `restart` und `stop + remove`
+- **Sortierauswahl**: `s` öffnet eine Liste der Sortierfelder statt blind weiterzuschalten
+- **Weniger Rückfragen**: Start und Restart laufen ohne Bestätigung
+- **`actop update-container`**: Update von Apple Container inklusive Dienst-Stopp, Neustart der Container und Statusbericht
 
 ### Neu in v0.5
 
@@ -152,19 +191,50 @@ make build
 | Key | Action |
 |---|---|
 | `tab` / `1`–`4` | Tabs: containers / volumes / images / system |
-| `enter` | Action menu (ctop-style, fixed list) — also on volumes/images |
+| `enter` | Action menu as in ctop: only the actions that apply to the current state, each with its key (`[l] log view`, `[s] stop`, …) — also on volumes/images |
 | `l` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
 | `o` | Open published port (localhost:…) or container IP in the browser |
 | `c` | Configure grid columns (session; persist via config.toml) |
-| `S` / `X` / `K` / `D` | Start / Stop / Kill / Delete (with confirmation) |
-| `s` / `r` | Cycle sort field / reverse order |
+| `S` | Start (no confirmation) |
+| `X` / `K` | Stop / Kill (with confirmation) |
+| `D` | Delete (with confirmation; a running container is stopped first) |
+| `s` / `r` | Pick the sort field from a list / reverse order |
 | `f` | Filter (name/image) |
 | `a` | Toggle stopped containers |
 | `h` `?` | Help |
 | `q` | Quit or close view |
 
 `r` also triggers an immediate reconnect while the API server is unreachable.
+
+The action menu of a running container offers `[o] single view`,
+`[l] log view`, `[s] stop`, `[r] restart`, `[X] stop + remove`,
+`[e] exec shell`, `[w] open in browser` (only with a port or IP), `[K] kill`
+and `[c] cancel`; a stopped one offers `[o]`, `[l]`, `[s] start`,
+`[R] remove` and `[c]`. One key press runs the action; `j`/`k` and `enter`
+still work. Start and restart run at once, stop, kill and remove ask first.
+
+### Updating Apple Container
+
+```bash
+actop update-container        # asks before stopping running containers
+actop update-container -y     # no question
+```
+
+Apple's updater `/usr/local/bin/update-container.sh` only runs while the
+container service is stopped, and stopping it halts every container.
+`actop update-container` does the whole sequence: it checks GitHub for a
+newer release (and ends without stopping anything if there is none), notes
+the running containers, stops the service, runs Apple's updater (the sudo
+password prompt appears as usual), starts the service again and then the
+containers that were running. It finishes with a status report: version
+before and after, the service state, and per container "restarted", "start
+failed" or "no longer exists" — the latter for containers that ran with
+`--rm`, which Apple deletes when the service stops.
+
+If the updater fails or is interrupted with Ctrl+C, actop still brings the
+service and the containers back. The exit code is `0` when everything is
+back, `1` otherwise.
 
 ### Configuration
 
@@ -195,6 +265,13 @@ updateCheck = true       # daily release check; ACTOP_NO_UPDATE_CHECK=1 turns it
 - The update check queries `api.github.com` once a day for the latest
   releases — no token, no telemetry, version numbers only. Disable it with
   `updateCheck = false` or `ACTOP_NO_UPDATE_CHECK=1`.
+
+### New in v0.8
+
+- **Action menu as in ctop**: keys are shown in the menu and fire directly, only applicable actions are offered, `restart` and `stop + remove` are new
+- **Sort selection**: `s` opens a list of sort fields instead of cycling blindly
+- **Fewer confirmations**: start and restart run without one
+- **`actop update-container`**: updates Apple Container including the service stop, the container restarts and a status report
 
 ### New in v0.5
 

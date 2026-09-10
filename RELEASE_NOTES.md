@@ -6,6 +6,39 @@
 
 ## Deutsche Release Notes
 
+### v0.8.0 (2026-09-10)
+
+- **Aktionsmenü wie in ctop.** Jeder Eintrag zeigt seine Taste
+  (`[o] single view`, `[l] log view`, `[s] stop`, `[r] restart`,
+  `[X] stop + remove`, `[e] exec shell`, `[w] open in browser`, `[K] kill`,
+  `[c] cancel`), und ein Tastendruck löst die Aktion aus. Das Menü bietet nur
+  an, was im aktuellen Zustand geht — ein gestoppter Container zeigt
+  `start` und `remove`, keine ausgegrauten Einträge mehr. Volumes und Images
+  haben `[R] remove` und `[c] cancel`.
+- **Neu: `restart` und `stop + remove`.** Apple Container kennt beides nicht
+  als eigenen Befehl; actop stoppt und startet bzw. stoppt und löscht. Der
+  zweite Schritt läuft nur, wenn der Stopp gelang.
+- **Weniger Rückfragen.** Start und Restart laufen sofort, auch `S` in der
+  Übersicht. Stop, Kill und Löschen fragen weiterhin nach.
+- **`D` auf einem laufenden Container** stoppt ihn vor dem Löschen und sagt
+  das in der Rückfrage. Bisher schlug das Löschen fehl, weil Apple Container
+  laufende Container nicht ohne `--force` löscht.
+- **Sortierauswahl.** `s` öffnet eine Liste aller Sortierfelder mit dem
+  aktiven Feld markiert, statt blind zum nächsten zu springen.
+- **`actop update-container`** aktualisiert Apple Container in einem Zug:
+  Versionsprüfung auf GitHub (ist nichts zu tun, wird nichts gestoppt), Stopp
+  des Container-Dienstes mit Rückfrage, sofern Container laufen, Aufruf von
+  Apples Updater, Neustart des Dienstes und der zuvor laufenden Container,
+  Statusbericht. Scheitert der Updater oder wird er mit Ctrl+C abgebrochen,
+  kommen Dienst und Container trotzdem zurück. Der Update-Hinweis im
+  System-Tab nennt jetzt diesen Befehl statt des Skriptpfads.
+- **Homebrew-Formel wieder automatisch.** Der Release-Job schreibt die Formel
+  jetzt mit einem SSH-Deploy-Key statt eines persönlichen Tokens. Das Token
+  war seit v0.5.0 bei jedem Release leer oder ungültig; v0.5.0 bis v0.7.1
+  mussten von Hand in den Tap eingetragen werden.
+
+---
+
 ### v0.7.1 (2026-08-20)
 
 - **Sicherheitskorrektur in der Redaction.** Verbindungszeichenketten ohne
@@ -161,6 +194,38 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.8.0 (2026-09-10)
+
+- **Action menu as in ctop.** Every entry shows its key (`[o] single view`,
+  `[l] log view`, `[s] stop`, `[r] restart`, `[X] stop + remove`,
+  `[e] exec shell`, `[w] open in browser`, `[K] kill`, `[c] cancel`), and one
+  key press runs it. The menu offers only what applies to the current state —
+  a stopped container shows `start` and `remove`, no more dimmed entries.
+  Volumes and images have `[R] remove` and `[c] cancel`.
+- **New: `restart` and `stop + remove`.** Apple Container has no command for
+  either; actop stops and starts, or stops and deletes. The second step only
+  runs when the stop succeeded.
+- **Fewer confirmations.** Start and restart run at once, `S` in the grid
+  included. Stop, kill and delete still ask first.
+- **`D` on a running container** stops it before deleting and says so in the
+  prompt. Until now the delete failed, because Apple Container refuses to
+  delete a running container without `--force`.
+- **Sort selection.** `s` opens a list of all sort fields with the active one
+  marked, instead of jumping blindly to the next.
+- **`actop update-container`** updates Apple Container in one go: a version
+  check on GitHub (nothing is stopped when there is nothing to do), stopping
+  the container service — with a question if containers are running —,
+  Apple's updater, restarting the service and the containers that were
+  running, and a status report. If the updater fails or is interrupted with
+  Ctrl+C, the service and the containers still come back. The update hint in
+  the system tab now names this command instead of the script path.
+- **Homebrew formula automated again.** The release job now writes the
+  formula with an SSH deploy key instead of a personal token. The token had
+  been empty or invalid for every release since v0.5.0; v0.5.0 through
+  v0.7.1 had to be entered into the tap by hand.
+
+---
 
 ### v0.7.1 (2026-08-20)
 

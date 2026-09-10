@@ -42,7 +42,19 @@ cli/      subprocess + JSON → Go types. Knows nothing about the UI.
 metrics/  cumulative counters → per-interval rates (Engine keeps the baseline)
 model/    Store: containers merged from list+stats polls, sorting, filtering
 ui/       Bubble Tea root model (App) + screen stack
+upgrade/  `actop update-container`: stop service, Apple's updater, restart, report
 ```
+
+`upgrade` is the only code that stops the container service
+(`cli.Client.SystemStop`/`SystemStart`); the TUI never calls either. Its
+rule: fail before the service stop, carry on after it — a failed or
+interrupted update must still bring the service and containers back.
+
+**Menus follow the real ctop.** Keys are shown in the entry (`[l] log view`)
+and fire directly; only actions valid for the current state are listed;
+start/restart need no confirmation. v0.5.0 got this wrong ("ctop-faithful"
+meant a fixed, dimmed list without hotkeys) and v0.8.0 reverted it on the
+user's request — check `menus.go` in the ctop checkout before changing it.
 
 **Two different "model" concepts.** `App` is the Bubble Tea root model
 (`Init/Update/View`). Everything visible is a `screen` — actop's own interface
