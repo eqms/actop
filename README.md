@@ -51,20 +51,26 @@ make build
 |---|---|
 | `tab` / `1`–`4` | Tabs: Containers / Volumes / Images / System |
 | `enter` | Aktionsmenü wie in ctop: nur die Aktionen, die im aktuellen Zustand gehen, jede mit ihrer Taste (`[l] log view`, `[s] stop`, …) — auch in Volumes/Images |
-| `l` | Logs (follow) |
+| `o` / `→` | Detailansicht (single view) |
+| `l` / `←` | Logs (follow) |
 | `e` | Shell im Container (fish→zsh→bash→sh) |
-| `o` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
-| `c` | Grid-Spalten konfigurieren (Session; persistent via config.toml) |
-| `S` | Start (ohne Rückfrage) |
+| `w` | Published Port (localhost:…) bzw. Container-IP im Browser öffnen |
+| `c` | Grid-Spalten konfigurieren |
+| `S` | Einstellungen speichern (Sortierung, Richtung, gestoppte Container, Spalten → config.toml) |
 | `X` / `K` | Stop / Kill (mit Rückfrage) |
-| `D` | Delete (mit Rückfrage; ein laufender Container wird vorher gestoppt) |
 | `s` / `r` | Sortierfeld aus einer Liste wählen / Richtung umkehren |
 | `f` | Filter (Name/Image) |
 | `a` | Gestoppte Container ein-/ausblenden |
+| `H` | Kopfzeile ein-/ausblenden (Verbindungswarnung und Meldungen bleiben) |
+| `D` | Volume bzw. Image löschen (Tabs 2 und 3, mit Rückfrage) |
 | `h` `?` | Hilfe |
 | `q` | Beenden bzw. Ansicht schließen |
 
 `r` startet bei getrennter Verbindung außerdem einen sofortigen Reconnect.
+Die Übersicht folgt ctop; `X` und `K` sind actop-Zusätze, die ctop nicht
+belegt. Starten und Löschen von Containern laufen über das Aktionsmenü.
+`S` überschreibt die `config.toml`: Poll-Intervall, Shell und Update-Check
+bleiben erhalten, Kommentare in der Datei nicht.
 
 Im Aktionsmenü eines laufenden Containers stehen `[o] single view`,
 `[l] log view`, `[s] stop`, `[r] restart`, `[X] stop + remove`,
@@ -124,6 +130,10 @@ updateCheck = true       # täglicher Versionscheck; ACTOP_NO_UPDATE_CHECK=1 dea
 - Der Update-Check fragt einmal täglich `api.github.com` nach den neuesten
   Releases — ohne Token, ohne Telemetrie, und nur nach Versionsnummern.
   Abschaltbar per `updateCheck = false` oder `ACTOP_NO_UPDATE_CHECK=1`.
+
+### Neu in v0.9
+
+- **Übersicht mit ctops Tasten**: `o`/`→` Detailansicht, `←` Logs, `w` Browser, `S` Einstellungen speichern, `H` Kopfzeile; Container starten und löschen über das Aktionsmenü
 
 ### Neu in v0.8
 
@@ -192,20 +202,26 @@ make build
 |---|---|
 | `tab` / `1`–`4` | Tabs: containers / volumes / images / system |
 | `enter` | Action menu as in ctop: only the actions that apply to the current state, each with its key (`[l] log view`, `[s] stop`, …) — also on volumes/images |
-| `l` | Logs (follow) |
+| `o` / `→` | Single view (details) |
+| `l` / `←` | Logs (follow) |
 | `e` | Shell inside the container (fish→zsh→bash→sh) |
-| `o` | Open published port (localhost:…) or container IP in the browser |
-| `c` | Configure grid columns (session; persist via config.toml) |
-| `S` | Start (no confirmation) |
+| `w` | Open published port (localhost:…) or container IP in the browser |
+| `c` | Configure grid columns |
+| `S` | Save settings (sort field, order, stopped containers, columns → config.toml) |
 | `X` / `K` | Stop / Kill (with confirmation) |
-| `D` | Delete (with confirmation; a running container is stopped first) |
 | `s` / `r` | Pick the sort field from a list / reverse order |
 | `f` | Filter (name/image) |
 | `a` | Toggle stopped containers |
+| `H` | Toggle the header (connection warning and messages stay) |
+| `D` | Delete a volume or image (tabs 2 and 3, with confirmation) |
 | `h` `?` | Help |
 | `q` | Quit or close view |
 
 `r` also triggers an immediate reconnect while the API server is unreachable.
+The grid follows ctop; `X` and `K` are actop extras that ctop leaves unbound.
+Containers are started and deleted through the action menu. `S` overwrites
+`config.toml`: poll interval, shell and update check are kept, comments in
+the file are not.
 
 The action menu of a running container offers `[o] single view`,
 `[l] log view`, `[s] stop`, `[r] restart`, `[X] stop + remove`,
@@ -265,6 +281,10 @@ updateCheck = true       # daily release check; ACTOP_NO_UPDATE_CHECK=1 turns it
 - The update check queries `api.github.com` once a day for the latest
   releases — no token, no telemetry, version numbers only. Disable it with
   `updateCheck = false` or `ACTOP_NO_UPDATE_CHECK=1`.
+
+### New in v0.9
+
+- **Grid with ctop's keys**: `o`/`→` single view, `←` logs, `w` browser, `S` save settings, `H` header; containers are started and deleted through the action menu
 
 ### New in v0.8
 

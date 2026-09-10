@@ -6,6 +6,27 @@
 
 ## Deutsche Release Notes
 
+### v0.9.0 (2026-09-10)
+
+Die Container-Übersicht folgt jetzt ctops Tastenbelegung. **Drei Tasten
+ändern ihre Bedeutung** — wer sie gewohnt ist, sollte das wissen:
+
+- **`o` öffnet die Detailansicht** statt des Browsers; der Browser liegt auf
+  **`w`**. Neu: **`→`** öffnet ebenfalls die Detailansicht, **`←`** die Logs.
+- **`S` speichert die Einstellungen** — Sortierfeld, Richtung, gestoppte
+  Container ein/aus und Spalten — in die `config.toml`, statt einen Container
+  zu starten. Poll-Intervall, Shell und Update-Check bleiben, Kommentare in
+  der Datei gehen verloren. Geschrieben wird atomar mit Rechten `600`.
+- **`D` löscht in der Container-Übersicht nicht mehr.** ctop belegt die
+  Taste mit einem Debug-Dump, den actop nicht hat. Container starten und
+  löschen jetzt über das Aktionsmenü (`enter`). In den Tabs Volumes und
+  Images löscht `D` weiterhin, mit Rückfrage.
+- **`H` blendet die Kopfzeile aus und ein.** Der Hinweis auf eine getrennte
+  Verbindung und Statusmeldungen bleiben dabei sichtbar.
+- `X` (Stop) und `K` (Kill) bleiben — ctop belegt sie nicht.
+
+---
+
 ### v0.8.0 (2026-09-10)
 
 - **Aktionsmenü wie in ctop.** Jeder Eintrag zeigt seine Taste
@@ -194,6 +215,27 @@ Erstes Release — ctop-ähnliche Terminal-UI für Apple Container (macOS 26, Ap
 ---
 
 ## English Release Notes
+
+### v0.9.0 (2026-09-10)
+
+The container grid now follows ctop's key bindings. **Three keys change
+meaning** — worth knowing if you are used to them:
+
+- **`o` opens the single view** instead of the browser; the browser moved to
+  **`w`**. New: **`→`** also opens the single view, **`←`** the logs.
+- **`S` saves the settings** — sort field, order, stopped containers on/off
+  and columns — to `config.toml` instead of starting a container. Poll
+  interval, shell and update check are kept; comments in the file are lost.
+  The file is written atomically with mode `600`.
+- **`D` no longer deletes in the container grid.** ctop binds it to a debug
+  dump that actop does not have. Containers are started and deleted through
+  the action menu (`enter`). On the volumes and images tabs `D` still
+  deletes, with confirmation.
+- **`H` toggles the header.** The disconnected warning and status messages
+  stay visible.
+- `X` (stop) and `K` (kill) stay — ctop leaves them unbound.
+
+---
 
 ### v0.8.0 (2026-09-10)
 

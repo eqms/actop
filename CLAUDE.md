@@ -50,11 +50,14 @@ upgrade/  `actop update-container`: stop service, Apple's updater, restart, repo
 rule: fail before the service stop, carry on after it — a failed or
 interrupted update must still bring the service and containers back.
 
-**Menus follow the real ctop.** Keys are shown in the entry (`[l] log view`)
-and fire directly; only actions valid for the current state are listed;
-start/restart need no confirmation. v0.5.0 got this wrong ("ctop-faithful"
-meant a fixed, dimmed list without hotkeys) and v0.8.0 reverted it on the
-user's request — check `menus.go` in the ctop checkout before changing it.
+**Menus and grid keys follow the real ctop.** Menu entries show their key
+(`[l] log view`) and fire on it; only actions valid for the current state are
+listed; start/restart need no confirmation. The grid uses ctop's `o`/`→`,
+`←`, `w`, `S` (save config), `H`; `X`/`K` are actop extras ctop leaves free,
+and `D` is deliberately unbound on the containers tab. v0.5.0 got this wrong
+("ctop-faithful" meant a fixed, dimmed list without hotkeys); v0.8.0 and
+v0.9.0 fixed it on the user's request — check `menus.go` and `grid.go` in
+the ctop checkout before changing either.
 
 **Two different "model" concepts.** `App` is the Bubble Tea root model
 (`Init/Update/View`). Everything visible is a `screen` — actop's own interface
