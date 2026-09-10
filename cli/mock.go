@@ -130,6 +130,11 @@ func (m *MockClient) Stop(ctx context.Context, id string) error   { return m.act
 func (m *MockClient) Kill(ctx context.Context, id string) error   { return m.action(ctx, "Kill", id) }
 func (m *MockClient) Delete(ctx context.Context, id string) error { return m.action(ctx, "Delete", id) }
 
+// SystemStop and SystemStart go through ActionFn with an empty id, so tests
+// can fail them like any other action.
+func (m *MockClient) SystemStop(ctx context.Context) error  { return m.action(ctx, "SystemStop", "") }
+func (m *MockClient) SystemStart(ctx context.Context) error { return m.action(ctx, "SystemStart", "") }
+
 func (m *MockClient) LogsCmd(id string, follow bool) *exec.Cmd {
 	return exec.Command("cat", "/dev/null")
 }

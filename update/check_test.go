@@ -207,7 +207,7 @@ func TestRunDoesNotCacheFailures(t *testing.T) {
 	}
 }
 
-// hintFor's "container" branch depends on whether updateScript exists on the
+// hintFor's "container" branch depends on whether ContainerScript exists on the
 // machine running the test -- true on a dev box with Apple Container's signed
 // package installed, false on a bare CI runner. Both outcomes are documented
 // here rather than forced, since restructuring hintFor to inject that check
@@ -217,9 +217,12 @@ func TestHintFor(t *testing.T) {
 		t.Errorf(`hintFor("actop") = %q, want "brew upgrade actop"`, got)
 	}
 
+	// With Apple's updater present the hint is actop's wrapper, which stops
+	// and restarts the service around it; the bare script refuses to run
+	// while the service is up.
 	got := hintFor("container")
-	if got != updateScript && got != releasesPage {
-		t.Errorf("hintFor(%q) = %q, want %q or %q", "container", got, updateScript, releasesPage)
+	if got != "actop update-container" && got != releasesPage {
+		t.Errorf("hintFor(%q) = %q, want %q or %q", "container", got, "actop update-container", releasesPage)
 	}
 	if got == "" {
 		t.Error(`hintFor("container") must never be empty`)
@@ -241,5 +244,36 @@ func TestZeroValueCheckerHasDefaults(t *testing.T) {
 	}
 	if ck.now().IsZero() {
 		t.Error("now() must return a real time")
+	}
+}
+
+// Latest backs `actop update-container`, which decides from it whether to
+// stop the container service at all -- a day-old cache entry must not make
+// it skip a release published this morning.
+func TestLatestBypassesCache(t *testing.T) {
+	var hits int64
+	srv := releaseServer(t, map[string]string{"apple/container": "1.4.1"}, &hits)
+	ck := testChecker(t, srv)
+	if err := writeCache(ck.CacheDir, cacheEntry{CheckedAt: testNow,
+		Latest: map[string]string{"container": "1.3.1", "actop": "0.7.1"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := ck.Latest(context.Background(), "container")
+	if !ok || got != "1.4.1" {
+		t.Errorf("Latest = (%q, %v), want (1.4.1, true)", got, ok)
+	}
+	if atomic.LoadInt64(&hits) != 1 {
+		t.Errorf("hits = %d, want 1 request despite a fresh cache", hits)
+	}
+}
+
+func TestLatestRejectsUnknownAndInvalid(t *testing.T) {
+	srv := releaseServer(t, map[string]string{"apple/container": "not-a-version"}, nil)
+	ck := testChecker(t, srv)
+	if _, ok := ck.Latest(context.Background(), "container"); ok {
+		t.Error("an unparseable tag must not count as a release")
+	}
+	if _, ok := ck.Latest(context.Background(), "nginx"); ok {
+		t.Error("a component without a source must not be looked up")
 	}
 }

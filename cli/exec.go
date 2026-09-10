@@ -236,6 +236,20 @@ func (c *ExecClient) Delete(ctx context.Context, id string) error {
 	return err
 }
 
+func (c *ExecClient) SystemStop(ctx context.Context) error {
+	_, err := c.run(ctx, "system", "stop")
+	return err
+}
+
+// SystemStart declines the default-kernel install instead of prompting:
+// output is captured and there is no terminal to answer on, so the prompt
+// would stall until the context expires. After an update the kernel is
+// already in place.
+func (c *ExecClient) SystemStart(ctx context.Context) error {
+	_, err := c.run(ctx, "system", "start", "--disable-kernel-install")
+	return err
+}
+
 func (c *ExecClient) LogsCmd(id string, follow bool) *exec.Cmd {
 	args := []string{"logs"}
 	if follow {

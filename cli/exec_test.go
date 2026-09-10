@@ -124,3 +124,19 @@ func TestZeroValueClientHasDefaults(t *testing.T) {
 		t.Errorf("limit() = %d, want %d", c.limit(), defaultMaxOutput)
 	}
 }
+
+// system start must never wait on the interactive kernel-install prompt: it
+// runs with captured output and no terminal, so the prompt would stall it.
+func TestSystemStartDisablesKernelPrompt(t *testing.T) {
+	c := fakeBinary(t, `[ "$*" = "system start --disable-kernel-install" ] || { echo "got: $*" >&2; exit 1; }`, 1024)
+	if err := c.SystemStart(context.Background()); err != nil {
+		t.Errorf("SystemStart: %v", err)
+	}
+}
+
+func TestSystemStopArgs(t *testing.T) {
+	c := fakeBinary(t, `[ "$*" = "system stop" ] || { echo "got: $*" >&2; exit 1; }`, 1024)
+	if err := c.SystemStop(context.Background()); err != nil {
+		t.Errorf("SystemStop: %v", err)
+	}
+}

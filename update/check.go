@@ -18,9 +18,11 @@ const (
 	// maxBody caps the response, mirroring the caps ExecClient.run applies
 	// to subprocess output.
 	maxBody = 1 << 20 // 1 MiB
-	// updateScript is Apple's own updater, installed by the signed package.
-	updateScript = "/usr/local/bin/update-container.sh"
-	releasesPage = "https://github.com/apple/container/releases"
+	// ContainerScript is Apple's own updater, installed by the signed
+	// package. It refuses to run while the container service is up, which
+	// is why the hint points at `actop update-container` instead.
+	ContainerScript = "/usr/local/bin/update-container.sh"
+	releasesPage    = "https://github.com/apple/container/releases"
 )
 
 // source binds a component name to its GitHub repository. A slice rather
@@ -209,15 +211,27 @@ func (c *Checker) fetchLatest(ctx context.Context, repo string) (string, bool) {
 	return v.String(), true
 }
 
+// Latest looks up the newest release of one component, bypassing the cache.
+// `actop update-container` decides from it whether to stop the container
+// service at all, so a day-old answer is not good enough there.
+func (c *Checker) Latest(ctx context.Context, name string) (string, bool) {
+	for _, s := range sources {
+		if s.name == name {
+			return c.fetchLatest(ctx, s.repo)
+		}
+	}
+	return "", false
+}
+
 // hintFor returns the command that updates a component. For Apple Container
-// that is the updater from the signed package when it is present -- pointing
-// at a path that does not exist would be worse than pointing at the release
-// page.
+// that is actop's wrapper around the updater from the signed package, when
+// that updater is present -- pointing at a path that does not exist would be
+// worse than pointing at the release page.
 func hintFor(name string) string {
 	switch name {
 	case "container":
-		if _, err := os.Stat(updateScript); err == nil {
-			return updateScript
+		if _, err := os.Stat(ContainerScript); err == nil {
+			return "actop update-container"
 		}
 		return releasesPage
 	case "actop":

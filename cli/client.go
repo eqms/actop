@@ -32,6 +32,12 @@ type Client interface {
 	VolumeDelete(ctx context.Context, name string) error
 	ImageDelete(ctx context.Context, ref string) error
 
+	// SystemStop stops the container services and with them every running
+	// container; SystemStart brings the services back. Only
+	// `actop update-container` uses them -- the TUI never does.
+	SystemStop(ctx context.Context) error
+	SystemStart(ctx context.Context) error
+
 	// LogsCmd builds the (not yet started) subprocess for log streaming.
 	LogsCmd(id string, follow bool) *exec.Cmd
 	// ExecCmd builds the interactive shell subprocess for tea.ExecProcess.
